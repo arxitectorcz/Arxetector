@@ -1,0 +1,237 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local lp = Players.LocalPlayer
+local mouse = lp:GetMouse()
+
+local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+ScreenGui.Name = "CFZModMenu"
+ScreenGui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 280, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -140, 0.4, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 20, 60)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = ScreenGui
+local frameCorner = Instance.new("UICorner", mainFrame)
+frameCorner.CornerRadius = UDim.new(0, 15)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundTransparency = 1
+title.Text = "🦑 CFZ Squid Game Menu"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 20
+title.TextColor3 = Color3.fromRGB(0, 255, 255)
+title.Parent = mainFrame
+
+local btnContainer = Instance.new("Frame")
+btnContainer.Size = UDim2.new(1, -20, 1, -60)
+btnContainer.Position = UDim2.new(0,10,0,50)
+btnContainer.BackgroundTransparency = 1
+btnContainer.Parent = mainFrame
+local layout = Instance.new("UIListLayout", btnContainer)
+layout.FillDirection = Enum.FillDirection.Vertical
+layout.Padding = UDim.new(0,10)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local nameBox = Instance.new("TextBox")
+nameBox.Size = UDim2.new(1,0,0,40)
+nameBox.PlaceholderText = "Введите ник для TP"
+nameBox.BackgroundColor3 = Color3.fromRGB(30,30,50)
+nameBox.TextColor3 = Color3.fromRGB(0,255,255)
+nameBox.Font = Enum.Font.Gotham
+nameBox.TextSize = 16
+nameBox.ClearTextOnFocus = false
+nameBox.Parent = btnContainer
+local nameCorner = Instance.new("UICorner", nameBox)
+nameCorner.CornerRadius = UDim.new(0,8)
+
+local function findPlayerByPrefix(prefix)
+    prefix = prefix:lower()
+    for _,p in pairs(Players:GetPlayers()) do
+        if p.Name:lower():sub(1,#prefix) == prefix then
+            return p
+        end
+    end
+    return nil
+end
+
+local function addButton(text)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,40)
+    btn.BackgroundColor3 = Color3.fromRGB(0,0,150)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(0,255,255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 17
+    btn.AutoButtonColor = false
+    btn.Parent = btnContainer
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(0,8)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(255,50,50)
+    stroke.Thickness = 2
+    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(0,0,200) end)
+    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(0,0,150) end)
+    return btn
+end
+
+local infJumpBtn = addButton("Infinite Jump: OFF")
+local infJump = false
+infJumpBtn.MouseButton1Click:Connect(function()
+    infJump = not infJump
+    infJumpBtn.Text = infJump and "Infinite Jump: ON" or "Infinite Jump: OFF"
+end)
+UserInputService.JumpRequest:Connect(function()
+    if infJump and lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid:ChangeState("Jumping")
+    end
+end)
+
+local tpBtn = addButton("TP to Player")
+tpBtn.MouseButton1Click:Connect(function()
+    local target = findPlayerByPrefix(nameBox.Text)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        lp.Character:MoveTo(target.Character.HumanoidRootPart.Position + Vector3.new(2,0,0))
+    end
+end)
+
+local stickBtn = addButton("Give TP Stick")
+stickBtn.MouseButton1Click:Connect(function()
+    local tool = Instance.new("Tool")
+    tool.Name = "TP Stick"
+    tool.RequiresHandle = true
+    tool.Parent = lp.Backpack
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(0.3,3,0.3)
+    handle.Color = Color3.fromRGB(0,255,255)
+    handle.Material = Enum.Material.Neon
+    handle.CanCollide = false
+    handle.Parent = tool
+    tool.Activated:Connect(function()
+        local char = lp.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local targetPos = mouse.Hit.Position + Vector3.new(0,3,0)
+            char.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+        end
+    end)
+end)
+
+local noclipBtn = addButton("Noclip OFF")
+local noclipEnabled = false
+noclipBtn.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    if noclipEnabled then
+        noclipBtn.Text = "Noclip ON"
+        print("Noclip включен ✅")
+    else
+        noclipBtn.Text = "Noclip OFF"
+        print("Noclip выключен ❌")
+    end
+end)
+RunService.Stepped:Connect(function()
+    local char = lp.Character
+    if char then
+        for _,v in pairs(char:GetDescendants()) do
+            if v:IsA("BasePart") then
+                if noclipEnabled then
+                    v.CanCollide = false
+                else
+                    v.CanCollide = true
+                end
+            end
+        end
+    end
+end)
+
+local speedBtn = addButton("SpeedHack: OFF")
+local speedEnabled = false
+local normalSpeed = 16
+local speedAmount = 50
+speedBtn.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    speedBtn.Text = speedEnabled and "SpeedHack: ON" or "SpeedHack: OFF"
+end)
+RunService.Stepped:Connect(function()
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid.WalkSpeed = speedEnabled and speedAmount or normalSpeed
+    end
+end)
+
+local fullBrightBtn = addButton("FullBright: OFF")
+local fullBrightEnabled = false
+local defaultLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime or 14,
+    FogEnd = Lighting.FogEnd,
+    FogColor = Lighting.FogColor,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient
+}
+local function setFullBright(state)
+    if state then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.FogColor = Color3.new(1,1,1)
+        Lighting.Ambient = Color3.new(1,1,1)
+        Lighting.OutdoorAmbient = Color3.new(1,1,1)
+    else
+        for k,v in pairs(defaultLighting) do
+            Lighting[k] = v
+        end
+    end
+end
+fullBrightBtn.MouseButton1Click:Connect(function()
+    fullBrightEnabled = not fullBrightEnabled
+    setFullBright(fullBrightEnabled)
+    fullBrightBtn.Text = fullBrightEnabled and "FullBright: ON" or "FullBright: OFF"
+end)
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0,120,0,50)
+toggleBtn.Position = UDim2.new(0.1,0,0.7,0)
+toggleBtn.Text = "CFZ"
+toggleBtn.Font = Enum.Font.GothamBlack
+toggleBtn.TextSize = 20
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,0,180)
+toggleBtn.TextColor3 = Color3.fromRGB(255,0,0)
+toggleBtn.Parent = ScreenGui
+local toggleCorner = Instance.new("UICorner", toggleBtn)
+toggleCorner.CornerRadius = UDim.new(0,25)
+
+local dragging, dragInput, dragStart, startPos
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = toggleBtn.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+toggleBtn.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+toggleBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
