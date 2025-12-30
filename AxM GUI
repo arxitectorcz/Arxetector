@@ -1,0 +1,262 @@
+--[[ 
+    [☢️] AxM SUPREME EXA-SCRIPT v13.666 (FINAL GOLD)
+    [🎨] THEME: YELLOW-BLUE CYBER (ULTRA)
+    [🚀] FLY: DIRECTIONAL JOINT (PE/PC)
+    [📍] ADDED: TP STICK & DRAGGABLE TOGGLE
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local lp = Players.LocalPlayer
+local mouse = lp:GetMouse()
+
+local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+ScreenGui.Name = "AxM_CyberGold_Supreme"
+ScreenGui.ResetOnSpawn = false
+
+-- ГЛАВНОЕ ОКНО
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 280, 0, 460)
+mainFrame.Position = UDim2.new(0.5, -140, 0.4, -230)
+mainFrame.BackgroundColor3 = Color3.fromRGB(2, 8, 20)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = ScreenGui
+
+local frameCorner = Instance.new("UICorner", mainFrame)
+frameCorner.CornerRadius = UDim.new(0, 15)
+
+local frameStroke = Instance.new("UIStroke", mainFrame)
+frameStroke.Color = Color3.fromRGB(255, 215, 0)
+frameStroke.Thickness = 3
+frameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- ЗАГОЛОВОК
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 50)
+title.BackgroundTransparency = 1
+title.Text = "AxM SUPREME v13"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 24
+title.TextColor3 = Color3.fromRGB(255, 215, 0)
+title.Parent = mainFrame
+
+local btnContainer = Instance.new("ScrollingFrame")
+btnContainer.Size = UDim2.new(1, -20, 1, -70)
+btnContainer.Position = UDim2.new(0, 10, 0, 60)
+btnContainer.BackgroundTransparency = 1
+btnContainer.BorderSizePixel = 0
+btnContainer.ScrollBarThickness = 0
+btnContainer.CanvasSize = UDim2.new(0, 0, 1.8, 0)
+btnContainer.Parent = mainFrame
+
+local layout = Instance.new("UIListLayout", btnContainer)
+layout.Padding = UDim.new(0, 8)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- ПОЛЕ ВВОДА
+local nameBox = Instance.new("TextBox")
+nameBox.Size = UDim2.new(1, -10, 0, 35)
+nameBox.PlaceholderText = "НИК ДЛЯ TP"
+nameBox.BackgroundColor3 = Color3.fromRGB(10, 20, 45)
+nameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameBox.Font = Enum.Font.Code
+nameBox.TextSize = 14
+nameBox.Parent = btnContainer
+Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 6)
+
+-- ФУНКЦИЯ ДЛЯ КНОПОК
+local function addButton(text)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 42)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 35, 75)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 215, 0)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    btn.AutoButtonColor = false
+    btn.Parent = btnContainer
+    
+    local c = Instance.new("UICorner", btn)
+    c.CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke", btn)
+    s.Color = Color3.fromRGB(255, 215, 0)
+    s.Thickness = 1
+    s.Transparency = 0.6
+
+    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(25, 55, 115) s.Transparency = 0 end)
+    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(15, 35, 75) s.Transparency = 0.6 end)
+    return btn
+end
+
+-- [МОДУЛИ AxM]
+
+-- 1. TP STICK (НОВАЯ ФУНКЦИЯ)
+local stickBtn = addButton("GET TP STICK")
+stickBtn.MouseButton1Click:Connect(function()
+    local tool = Instance.new("Tool")
+    tool.Name = "AxM TP STICK"
+    tool.RequiresHandle = true
+    tool.Parent = lp.Backpack
+    
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(0.3, 4, 0.3)
+    handle.Color = Color3.fromRGB(255, 215, 0)
+    handle.Material = Enum.Material.Neon
+    handle.Parent = tool
+    
+    tool.Activated:Connect(function()
+        if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            lp.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+        end
+    end)
+end)
+
+-- 2. FLY (PE/PC DIRECTIONAL)
+local flyBtn = addButton("FLY: [OFF]")
+local flying = false
+flyBtn.MouseButton1Click:Connect(function()
+    flying = not flying
+    flyBtn.Text = flying and "FLY: [ON]" or "FLY: [OFF]"
+    flyBtn.TextColor3 = flying and Color3.new(1,1,1) or Color3.fromRGB(255, 215, 0)
+    
+    if flying then
+        local bv = Instance.new("BodyVelocity")
+        bv.Name = "AxMFly"
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bv.Parent = lp.Character:FindFirstChild("HumanoidRootPart")
+        
+        task.spawn(function()
+            while flying do
+                RunService.RenderStepped:Wait()
+                if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                    local hrp = lp.Character.HumanoidRootPart
+                    local hum = lp.Character.Humanoid
+                    hrp.AxMFly.Velocity = hum.MoveDirection * 60
+                    if hum.Jump then
+                        hrp.AxMFly.Velocity = hrp.AxMFly.Velocity + Vector3.new(0, 50, 0)
+                    end
+                end
+            end
+            if lp.Character.HumanoidRootPart:FindFirstChild("AxMFly") then
+                lp.Character.HumanoidRootPart.AxMFly:Destroy()
+            end
+        end)
+    end
+end)
+
+-- 3. INF JUMP
+local infJumpBtn = addButton("INF JUMP: [OFF]")
+local infJump = false
+infJumpBtn.MouseButton1Click:Connect(function()
+    infJump = not infJump
+    infJumpBtn.Text = infJump and "INF JUMP: [ON]" or "INF JUMP: [OFF]"
+end)
+UserInputService.JumpRequest:Connect(function()
+    if infJump and lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid:ChangeState("Jumping")
+    end
+end)
+
+-- 4. TELEPORT TO PLAYER
+local tpBtn = addButton("TP TO PLAYER")
+tpBtn.MouseButton1Click:Connect(function()
+    local prefix = nameBox.Text:lower()
+    for _,p in pairs(Players:GetPlayers()) do
+        if p.Name:lower():sub(1,#prefix) == prefix then
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                lp.Character:MoveTo(p.Character.HumanoidRootPart.Position)
+            end
+        end
+    end
+end)
+
+-- 5. NOCLIP
+local noclipBtn = addButton("NOCLIP: [OFF]")
+local noclip = false
+noclipBtn.MouseButton1Click:Connect(function()
+    noclip = not noclip
+    noclipBtn.Text = noclip and "NOCLIP: [ON]" or "NOCLIP: [OFF]"
+end)
+RunService.Stepped:Connect(function()
+    if noclip and lp.Character then
+        for _,v in pairs(lp.Character:GetDescendants()) do
+            if v:IsA("BasePart") then v.CanCollide = false end
+        end
+    end
+end)
+
+-- 6. SPEED
+local speedBtn = addButton("SPEED: [OFF]")
+local speed = false
+speedBtn.MouseButton1Click:Connect(function()
+    speed = not speed
+    speedBtn.Text = speed and "SPEED: [ON]" or "SPEED: [OFF]"
+end)
+RunService.Heartbeat:Connect(function()
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid.WalkSpeed = speed and 60 or 16
+    end
+end)
+
+-- 7. FULLBRIGHT
+local brightBtn = addButton("FULLBRIGHT: [OFF]")
+local fb = false
+brightBtn.MouseButton1Click:Connect(function()
+    fb = not fb
+    brightBtn.Text = fb and "FULLBRIGHT: [ON]" or "FULLBRIGHT: [OFF]"
+    Lighting.Brightness = fb and 2 or 1
+    Lighting.Ambient = fb and Color3.new(1,1,1) or Color3.new(0.5,0.5,0.5)
+end)
+
+-- КНОПКА AxM (ПЕРЕТАСКИВАЕМАЯ)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 65, 0, 65)
+toggleBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+toggleBtn.Text = "AxM"
+toggleBtn.Font = Enum.Font.GothamBlack
+toggleBtn.TextSize = 22
+toggleBtn.TextColor3 = Color3.fromRGB(5, 15, 35)
+toggleBtn.ZIndex = 10000
+toggleBtn.Parent = ScreenGui
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
+
+local tStroke = Instance.new("UIStroke", toggleBtn)
+tStroke.Color = Color3.new(1, 1, 1)
+tStroke.Thickness = 2
+
+-- ЛОГИКА ПЕРЕТАСКИВАНИЯ (DRAG) ДЛЯ КНОПКИ
+local dragToggle = nil
+local dragStart = nil
+local startPos = nil
+
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = toggleBtn.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragToggle = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        toggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
