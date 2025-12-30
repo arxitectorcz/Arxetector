@@ -1,136 +1,72 @@
---[[ 
-    [🚀] AxM SUPREME EDITION
-    [🛰️] CORE: INTEGRATED IY FLY & TP SYSTEMS
-    [⚡] FEATURES: SPEED, NOCLIP, INF JUMP, TP STICK
-]]
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
 local lp = Players.LocalPlayer
-local mouse = lp:GetMouse()
-local camera = workspace.CurrentCamera
 
-local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-ScreenGui.Name = "AxM_Engine"
-ScreenGui.ResetOnSpawn = false
-
--- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 local FLYING = false
 local iyflyspeed = 1
 local flyKeyDown, flyKeyUp
 
+-- Поиск корневой части персонажа
 local function getRoot(char)
 	return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
 end
 
--- ГЛАВНОЕ ОКНО AxM
-local mainFrame = Instance.new("Frame", ScreenGui)
-mainFrame.Size = UDim2.new(0, 200, 0, 420)
-mainFrame.Position = UDim2.new(0.5, -100, 0.4, -210)
-mainFrame.BackgroundColor3 = Color3.fromRGB(5, 10, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Visible = false
-mainFrame.Active = true
-mainFrame.Draggable = true
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
-local stroke = Instance.new("UIStroke", mainFrame)
-stroke.Color = Color3.fromRGB(255, 215, 0)
-stroke.Thickness = 2
-
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundTransparency = 1
-title.Text = "AxM SYSTEM"
-title.Font = Enum.Font.GothamBlack
-title.TextSize = 18
-title.TextColor3 = Color3.fromRGB(255, 215, 0)
-
-local btnContainer = Instance.new("ScrollingFrame", mainFrame)
-btnContainer.Size = UDim2.new(1, -14, 1, -50)
-btnContainer.Position = UDim2.new(0, 7, 0, 40)
-btnContainer.BackgroundTransparency = 1
-btnContainer.ScrollBarThickness = 0
-btnContainer.CanvasSize = UDim2.new(0, 0, 2.6, 0)
-Instance.new("UIListLayout", btnContainer).Padding = UDim.new(0, 5)
-
-local function addButton(text)
-	local btn = Instance.new("TextButton", btnContainer)
-	btn.Size = UDim2.new(1, -6, 0, 32)
-	btn.BackgroundColor3 = Color3.fromRGB(20, 40, 80)
-	btn.Text = text
-	btn.TextColor3 = Color3.fromRGB(255, 215, 0)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 11
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-	return btn
-end
-
--- ПОЛЕ ВВОДА
-local nameBox = Instance.new("TextBox", btnContainer)
-nameBox.Size = UDim2.new(1, -6, 0, 28)
-nameBox.PlaceholderText = "НИК ИГРОКА"
-nameBox.BackgroundColor3 = Color3.fromRGB(15, 25, 50)
-nameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-nameBox.Font = Enum.Font.Code
-nameBox.TextSize = 12
-Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 4)
-
--- ЛОГИКА ПОЛЕТА AxM
-local flyBtn 
-
-function NOFLY()
-	FLYING = false
-	if flyKeyDown then flyKeyDown:Disconnect() end
-	if flyKeyUp then flyKeyUp:Disconnect() end
-	if lp.Character and lp.Character:FindFirstChildOfClass('Humanoid') then
-		lp.Character:FindFirstChildOfClass('Humanoid').PlatformStand = false
-	end
-	if flyBtn then flyBtn.Text = "FLY: [OFF]" end
-end
-
+-- Логика полета из Infinite Yield
 function sFLY()
 	local char = lp.Character or lp.CharacterAdded:Wait()
 	local humanoid = char:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return end
-	NOFLY()
-	task.wait(0.05)
-	
+
+	if flyKeyDown or flyKeyUp then
+		flyKeyDown:Disconnect()
+		flyKeyUp:Disconnect()
+	end
+
 	local T = getRoot(char)
 	local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+	local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
 	local SPEED = 0
 
-	FLYING = true
-	if flyBtn then flyBtn.Text = "FLY: [ON]" end
-	
-	local BG = Instance.new('BodyGyro', T)
-	local BV = Instance.new('BodyVelocity', T)
-	BG.P = 9e4
-	BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-	BG.CFrame = T.CFrame
-	BV.Velocity = Vector3.new(0, 0, 0)
-	BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-	
-	task.spawn(function()
-		repeat task.wait()
-			humanoid.PlatformStand = true
-			if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
-				SPEED = 50 * iyflyspeed
-			else
-				SPEED = 0
-			end
-			if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
-				BV.Velocity = ((camera.CFrame.LookVector * (CONTROL.F + CONTROL.B)) + ((camera.CFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - camera.CFrame.p)) * SPEED
-			else
-				BV.Velocity = Vector3.new(0, 0, 0)
-			end
-			BG.CFrame = camera.CFrame
-		until not FLYING
-		BG:Destroy()
-		BV:Destroy()
-		humanoid.PlatformStand = false
-	end)
+	local function FLY()
+		FLYING = true
+		local BG = Instance.new('BodyGyro')
+		local BV = Instance.new('BodyVelocity')
+		BG.P = 9e4
+		BG.Parent = T
+		BV.Parent = T
+		BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+		BG.CFrame = T.CFrame
+		BV.Velocity = Vector3.new(0, 0, 0)
+		BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+		
+		task.spawn(function()
+			repeat task.wait()
+				if humanoid then
+					humanoid.PlatformStand = true
+				end
+
+				if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
+					SPEED = 50 * iyflyspeed
+				else
+					SPEED = 0
+				end
+
+				local camera = workspace.CurrentCamera
+				if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
+					BV.Velocity = ((camera.CFrame.LookVector * (CONTROL.F + CONTROL.B)) + ((camera.CFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - camera.CFrame.p)) * SPEED
+					lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
+				elseif SPEED == 0 then
+					BV.Velocity = Vector3.new(0, 0, 0)
+				end
+				BG.CFrame = camera.CFrame
+			until not FLYING
+			
+			BG:Destroy()
+			BV:Destroy()
+			if humanoid then humanoid.PlatformStand = false end
+		end)
+	end
 
 	flyKeyDown = UserInputService.InputBegan:Connect(function(input, processed)
 		if processed then return end
@@ -139,7 +75,8 @@ function sFLY()
 		elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = -1
 		elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = 1
 		elseif input.KeyCode == Enum.KeyCode.E then CONTROL.Q = 2
-		elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = -2 end
+		elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = -2
+		end
 	end)
 
 	flyKeyUp = UserInputService.InputEnded:Connect(function(input)
@@ -148,122 +85,33 @@ function sFLY()
 		elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = 0
 		elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = 0
 		elseif input.KeyCode == Enum.KeyCode.E then CONTROL.Q = 0
-		elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = 0 end
+		elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = 0
+		end
 	end)
+	
+	FLY()
 end
 
--- КНОПКИ ФУНКЦИЙ
-addButton("TP TO PLAYER").MouseButton1Click:Connect(function()
-	local target = nameBox.Text:lower()
-	for _, v in pairs(Players:GetPlayers()) do
-		if v.Name:lower():sub(1, #target) == target and v.Character then
-			lp.Character:MoveTo(v.Character.HumanoidRootPart.Position)
-			break
-		end
+function NOFLY()
+	FLYING = false
+	if flyKeyDown then flyKeyDown:Disconnect() end
+	if flyKeyUp then flyKeyUp:Disconnect() end
+	if lp.Character and lp.Character:FindFirstChildOfClass('Humanoid') then
+		lp.Character:FindFirstChildOfClass('Humanoid').PlatformStand = false
 	end
-end)
+end
 
-local speedActive = false
-local speedPower = 2.2
-local sBtn = addButton("SPEED: [OFF]")
-sBtn.MouseButton1Click:Connect(function()
-	speedActive = not speedActive
-	sBtn.Text = speedActive and "SPEED: [ON]" or "SPEED: [OFF]"
-end)
-
-flyBtn = addButton("FLY: [OFF]")
-flyBtn.MouseButton1Click:Connect(function()
-	if FLYING then NOFLY() else sFLY() end
-end)
-
-local infJump = false
-local ijBtn = addButton("INF JUMP: [OFF]")
-ijBtn.MouseButton1Click:Connect(function()
-    infJump = not infJump
-    ijBtn.Text = infJump and "INF JUMP: [ON]" or "INF JUMP: [OFF]"
-end)
-
-UserInputService.JumpRequest:Connect(function()
-    if infJump then 
-        local hum = lp.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum:ChangeState("Jumping") end 
-    end
-end)
-
-local noclip = false
-local nBtn = addButton("NOCLIP: [OFF]")
-nBtn.MouseButton1Click:Connect(function() noclip = not noclip nBtn.Text = noclip and "NOCLIP: [ON]" or "NOCLIP: [OFF]" end)
-
-local fb = false
-local fbBtn = addButton("VISION: [OFF]")
-fbBtn.MouseButton1Click:Connect(function()
-	fb = not fb
-	fbBtn.Text = fb and "VISION: [ON]" or "VISION: [OFF]"
-	Lighting.Brightness = fb and 2 or 1
-	Lighting.OutdoorAmbient = fb and Color3.new(1,1,1) or Color3.new(0.5,0.5,0.5)
-end)
-
-addButton("AxM STICK (GET)").MouseButton1Click:Connect(function()
-    local tool = Instance.new("Tool")
-    tool.Name = "AxM Stick"
-    tool.RequiresHandle = true
-    
-    local handle = Instance.new("Part")
-    handle.Name = "Handle"
-    handle.Size = Vector3.new(0.4, 3.5, 0.4)
-    handle.Parent = tool
-    handle.Material = Enum.Material.Neon
-    handle.Color = Color3.fromRGB(255, 215, 0)
-    
-    tool.Activated:Connect(function()
-        lp.Character:SetPrimaryPartCFrame(CFrame.new(mouse.Hit.p + Vector3.new(0, 3, 0)))
-    end)
-    tool.Parent = lp.Backpack
-end)
-
--- КОМАНДЫ ЧАТА
+-- Обработка команд без префикса
 lp.Chatted:Connect(function(msg)
-	local args = string.split(msg:lower(), " ")
+	local raw = msg:lower()
+	local args = string.split(raw, " ")
+	
 	if args[1] == "fly" then
+		NOFLY()
+		task.wait(0.1)
 		iyflyspeed = tonumber(args[2]) or 1
 		sFLY()
 	elseif args[1] == "unfly" then
 		NOFLY()
 	end
 end)
-
--- ГЛАВНЫЙ ОБРАБОТЧИК
-RunService.Stepped:Connect(function()
-	if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
-	if noclip then
-		for _, p in pairs(lp.Character:GetDescendants()) do
-			if p:IsA("BasePart") then p.CanCollide = false end
-		end
-	end
-	if speedActive and not FLYING then
-		local hum = lp.Character.Humanoid
-		if hum.MoveDirection.Magnitude > 0 then
-			lp.Character:TranslateBy(hum.MoveDirection * speedPower)
-		end
-	end
-end)
-
--- ПЕРЕКЛЮЧАТЕЛЬ МЕНЮ AxM
-local tBtn = Instance.new("TextButton", ScreenGui)
-tBtn.Size = UDim2.new(0, 50, 0, 50)
-tBtn.Position = UDim2.new(0, 20, 0.5, -25)
-tBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-tBtn.Text = "AxM"
-tBtn.Font = "GothamBlack"
-tBtn.TextSize = 14
-tBtn.TextColor3 = Color3.fromRGB(5, 15, 35)
-Instance.new("UICorner", tBtn).CornerRadius = UDim.new(1,0)
-
-local dStart, sPos, dragging
-tBtn.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true dStart = i.Position sPos = tBtn.Position end end)
-UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-	local d = i.Position - dStart
-	tBtn.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset + d.X, sPos.Y.Scale, sPos.Y.Offset + d.Y)
-end end)
-UserInputService.InputEnded:Connect(function() dragging = false end)
-tBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
