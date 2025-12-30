@@ -1,0 +1,180 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GUIExplorer"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 40, 0, 40)
+toggleButton.Position = UDim2.new(1, -50, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextScaled = true
+toggleButton.Text = "+"
+toggleButton.Parent = screenGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 600, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.Text = "GUI Explorer — выбери GUI"
+title.Parent = mainFrame
+
+local searchBox = Instance.new("TextBox")
+searchBox.Size = UDim2.new(1, -20, 0, 30)
+searchBox.Position = UDim2.new(0, 10, 0, 40)
+searchBox.PlaceholderText = "Поиск GUI по имени..."
+searchBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+searchBox.TextColor3 = Color3.new(1,1,1)
+searchBox.ClearTextOnFocus = false
+searchBox.Font = Enum.Font.SourceSans
+searchBox.TextSize = 18
+searchBox.Parent = mainFrame
+
+local guiListFrame = Instance.new("ScrollingFrame")
+guiListFrame.Size = UDim2.new(0.4, -20, 1, -80)
+guiListFrame.Position = UDim2.new(0, 10, 0, 80)
+guiListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+guiListFrame.BorderSizePixel = 0
+guiListFrame.CanvasSize = UDim2.new(0, 0, 1, 0)
+guiListFrame.ScrollBarThickness = 6
+guiListFrame.Parent = mainFrame
+
+local guiListLayout = Instance.new("UIListLayout")
+guiListLayout.Padding = UDim.new(0, 4)
+guiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+guiListLayout.Parent = guiListFrame
+
+local detailsFrame = Instance.new("ScrollingFrame")
+detailsFrame.Size = UDim2.new(0.55, -20, 1, -80)
+detailsFrame.Position = UDim2.new(0.45, 10, 0, 80)
+detailsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+detailsFrame.BorderSizePixel = 0
+detailsFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
+detailsFrame.ScrollBarThickness = 6
+detailsFrame.Parent = mainFrame
+
+local detailsLayout = Instance.new("UIListLayout")
+detailsLayout.Padding = UDim.new(0, 4)
+detailsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+detailsLayout.Parent = detailsFrame
+
+local function clearDetails()
+    for _, child in pairs(detailsFrame:GetChildren()) do
+        if child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
+end
+
+local function setVisibleRecursive(obj, visible)
+    if obj:IsA("GuiObject") then
+        obj.Visible = visible
+    end
+    for _, child in pairs(obj:GetChildren()) do
+        setVisibleRecursive(child, visible)
+    end
+end
+
+local function updateGUIList(query)
+    for _, child in pairs(guiListFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    local guis = {}
+    for _, gui in pairs(playerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") and (query == "" or gui.Name:lower():find(query:lower())) then
+            table.insert(guis, gui)
+        end
+    end
+
+    table.sort(guis, function(a,b) return a.Name < b.Name end)
+
+    for _, gui in ipairs(guis) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 30)
+        btn.BackgroundColor3 = gui.Enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(120, 120, 120)
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.SourceSans
+        btn.TextSize = 18
+        btn.Text = gui.Name
+        btn.Parent = guiListFrame
+
+        btn.MouseButton1Click:Connect(function()
+            -- Переключаем Enabled
+            gui.Enabled = not gui.Enabled
+
+            -- Переключаем видимость рекурсивно
+            setVisibleRecursive(gui, gui.Enabled)
+
+            -- Обновляем цвет кнопки для отображения статуса
+            btn.BackgroundColor3 = gui.Enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(120, 120, 120)
+
+            -- Обновляем детали, если GUI теперь виден
+            if gui.Enabled then
+                clearDetails()
+                showDetails(gui)
+            else
+                clearDetails()
+            end
+        end)
+    end
+
+    guiListFrame.CanvasSize = UDim2.new(0, 0, 0, guiListLayout.AbsoluteContentSize.Y)
+end
+
+function showDetails(gui)
+    clearDetails()
+    local function recurse(obj, indent)
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 0, 20)
+        label.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 16
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Text = string.rep("  ", indent) .. obj.Name .. " [" .. obj.ClassName .. "]"
+        label.Parent = detailsFrame
+
+        for _, child in pairs(obj:GetChildren()) do
+            recurse(child, indent + 1)
+        end
+    end
+
+    recurse(gui, 0)
+
+    detailsFrame.CanvasSize = UDim2.new(0, 0, 0, detailsLayout.AbsoluteContentSize.Y)
+end
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    updateGUIList(searchBox.Text)
+end)
+
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+    toggleButton.Text = mainFrame.Visible and "-" or "+"
+    if mainFrame.Visible then
+        updateGUIList(searchBox.Text)
+        clearDetails()
+    end
+end)
+
+-- Изначально меню скрыто
+mainFrame.Visible = false
+toggleButton.Text = "+"

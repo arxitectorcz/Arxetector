@@ -1,0 +1,179 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+ 
+local guiVisible = false
+local espEnabled = false
+local infJump = false
+local noclip = false
+local invisible = false
+local unlocked = false
+local autoLeaveEnabled = false
+ 
+local mainGui = Instance.new("ScreenGui", game.CoreGui)
+mainGui.Name = "SuperHackGui"
+ 
+local guiFrame = Instance.new("Frame", mainGui)
+guiFrame.Size = UDim2.new(0, 250, 0, 300)
+guiFrame.Position = UDim2.new(0.5, -125, 0.5, -150)
+guiFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+guiFrame.BorderSizePixel = 0
+guiFrame.Visible = false
+guiFrame.Active = true
+guiFrame.Draggable = true
+Instance.new("UICorner", guiFrame).CornerRadius = UDim.new(0, 16)
+ 
+local uiList = Instance.new("UIListLayout", guiFrame)
+uiList.Padding = UDim.new(0, 6)
+ 
+local passwordBox = Instance.new("TextBox", mainGui)
+passwordBox.Size = UDim2.new(0, 200, 0, 40)
+passwordBox.Position = UDim2.new(0.5, -100, 0.5, -20)
+passwordBox.PlaceholderText = "Введите пароль"
+passwordBox.Text = ""
+passwordBox.TextSize = 18
+passwordBox.Font = Enum.Font.GothamBold
+passwordBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+passwordBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+passwordBox.ClearTextOnFocus = false
+Instance.new("UICorner", passwordBox).CornerRadius = UDim.new(0, 8)
+ 
+local toggleBtn = Instance.new("TextButton", mainGui)
+toggleBtn.Size = UDim2.new(0, 40, 0, 40)
+toggleBtn.Position = UDim2.new(1, -50, 0, 10)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 24
+toggleBtn.Text = "+"
+toggleBtn.Visible = false
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 12)
+ 
+function createBtn(text, callback)
+    local btn = Instance.new("TextButton", guiFrame)
+    btn.Size = UDim2.new(1, -12, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 16
+    btn.Text = text
+    btn.AutoButtonColor = true
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    btn.MouseButton1Click:Connect(callback)
+end
+ 
+function tpToRandom()
+    local players = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and not table.find({"Groa_garben99", "Minevorld2014", "vanilkako2"}, p.Name) then
+            table.insert(players, p)
+        end
+    end
+    if #players > 0 then
+        local choice = players[math.random(1, #players)]
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and choice.Character and choice.Character:FindFirstChild("HumanoidRootPart") then
+            char:MoveTo(choice.Character.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+        end
+    end
+end
+ 
+function enableESP()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            if not plr.Character:FindFirstChild("Highlight") then
+                local espBox = Instance.new("Highlight", plr.Character)
+                espBox.FillColor = Color3.fromRGB(255, 0, 0)
+                espBox.OutlineColor = Color3.fromRGB(255, 255, 255)
+            end
+        end
+    end
+end
+ 
+function toggleInvisibility()
+    local char = LocalPlayer.Character
+    if not char then return end
+    invisible = not invisible
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("Decal") then
+            part.Transparency = invisible and 1 or 0
+        end
+    end
+    if char:FindFirstChild("Head") and char.Head:FindFirstChild("face") then
+        char.Head.face.Transparency = invisible and 1 or 0
+    end
+end
+ 
+-- Авто лив — телепорт при hp <=10 на 200 блоков вверх
+RunService.Heartbeat:Connect(function()
+    if autoLeaveEnabled then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            if char.Humanoid.Health <= 10 then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = root.CFrame + Vector3.new(0, 200, 0)
+                end
+            end
+        end
+    end
+end)
+ 
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.F and unlocked then
+        guiVisible = not guiVisible
+        guiFrame.Visible = guiVisible
+        toggleBtn.Visible = not guiVisible
+        toggleBtn.Text = guiVisible and "-" or "+"
+    end
+end)
+ 
+RunService.Stepped:Connect(function()
+    if noclip and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+ 
+UserInputService.JumpRequest:Connect(function()
+    if infJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+ 
+toggleBtn.MouseButton1Click:Connect(function()
+    guiVisible = not guiVisible
+    guiFrame.Visible = guiVisible
+    toggleBtn.Visible = not guiVisible
+    toggleBtn.Text = guiVisible and "-" or "+"
+end)
+ 
+passwordBox.FocusLost:Connect(function(enterPressed)
+    if not enterPressed then return end
+    if passwordBox.Text == "Arxetector" then
+        passwordBox.Visible = false
+        guiFrame.Visible = true
+        toggleBtn.Visible = false
+        guiVisible = true
+        unlocked = true
+    else
+        passwordBox.Text = ""
+        passwordBox.PlaceholderText = "Неверный пароль, попробуй ещё"
+    end
+end)
+ 
+createBtn("👁 Вкл. ESP", function() if not espEnabled then espEnabled = true enableESP() end end)
+createBtn("🧱 Noclip", function() noclip = not noclip end)
+createBtn("🦘 Прыжки", function() infJump = not infJump end)
+createBtn("⚡️ TP к игроку", tpToRandom)
+createBtn("👻 Невидимость", toggleInvisibility)
+createBtn("❌ Закрыть", function()
+    guiFrame.Visible = false
+    toggleBtn.Visible = true
+    guiVisible = false
+end)

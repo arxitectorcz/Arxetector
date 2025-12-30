@@ -1,0 +1,250 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Создаём главный GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MapObjectExplorer"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Кнопка открытия/закрытия панели
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 40, 0, 40)
+toggleButton.Position = UDim2.new(1, -50, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextScaled = true
+toggleButton.Text = "+"
+toggleButton.Parent = screenGui
+
+-- Основная панель
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 700, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -350, 0.5, -225)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+-- Заголовок
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.Text = "Map Object Explorer — выбери объект"
+title.Parent = mainFrame
+
+-- Поисковое поле
+local searchBox = Instance.new("TextBox")
+searchBox.Size = UDim2.new(1, -20, 0, 30)
+searchBox.Position = UDim2.new(0, 10, 0, 40)
+searchBox.PlaceholderText = "Поиск объектов по имени..."
+searchBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+searchBox.TextColor3 = Color3.new(1, 1, 1)
+searchBox.ClearTextOnFocus = false
+searchBox.Font = Enum.Font.SourceSans
+searchBox.TextSize = 18
+searchBox.Parent = mainFrame
+
+-- Фрейм для списка объектов
+local objectListFrame = Instance.new("ScrollingFrame")
+objectListFrame.Size = UDim2.new(0.4, -20, 1, -80)
+objectListFrame.Position = UDim2.new(0, 10, 0, 80)
+objectListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+objectListFrame.BorderSizePixel = 0
+objectListFrame.CanvasSize = UDim2.new(0, 0, 1, 0)
+objectListFrame.ScrollBarThickness = 6
+objectListFrame.Parent = mainFrame
+
+local objectListLayout = Instance.new("UIListLayout")
+objectListLayout.Padding = UDim.new(0, 4)
+objectListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+objectListLayout.Parent = objectListFrame
+
+-- Фрейм для отображения содержимого выбранного объекта
+local detailsFrame = Instance.new("ScrollingFrame")
+detailsFrame.Size = UDim2.new(0.55, -20, 1, -80)
+detailsFrame.Position = UDim2.new(0.45, 10, 0, 80)
+detailsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+detailsFrame.BorderSizePixel = 0
+detailsFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
+detailsFrame.ScrollBarThickness = 6
+detailsFrame.Parent = mainFrame
+
+local detailsLayout = Instance.new("UIListLayout")
+detailsLayout.Padding = UDim.new(0, 4)
+detailsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+detailsLayout.Parent = detailsFrame
+
+-- Переключение видимости панели
+local isOpen = false
+toggleButton.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    mainFrame.Visible = isOpen
+    toggleButton.Text = isOpen and "-" or "+"
+    if isOpen then
+        updateObjectList(searchBox.Text)
+        clearDetails()
+    end
+end)
+
+-- Очистить детали
+local function clearDetails()
+    for _, child in pairs(detailsFrame:GetChildren()) do
+        if child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
+end
+
+-- Источники объектов
+local sources = {
+    workspace,
+    game:GetService("ReplicatedStorage"),
+    game:GetService("ServerStorage"),
+    game:GetService("Lighting"),
+}
+
+-- Таблицы для запоминания состояния объектов
+local originalParents = {}
+local originalProperties = {}
+
+local function saveOriginalState(obj)
+    if not originalParents[obj] then
+        originalParents[obj] = obj.Parent
+    end
+    if obj:IsA("BasePart") and not originalProperties[obj] then
+        originalProperties[obj] = {
+            Transparency = obj.Transparency,
+            CanCollide = obj.CanCollide,
+            Anchored = obj.Anchored
+        }
+    end
+end
+
+local function showObject(obj)
+    saveOriginalState(obj)
+    obj.Parent = workspace
+    if obj:IsA("Model") then
+        for _, part in ipairs(obj:GetDescendants()) do
+            if part:IsA("BasePart") then
+                saveOriginalState(part)
+                part.Transparency = 0
+                part.CanCollide = true
+                part.Anchored = true
+            end
+        end
+    elseif obj:IsA("BasePart") then
+        obj.Transparency = 0
+        obj.CanCollide = true
+        obj.Anchored = true
+    end
+end
+
+local function hideObject(obj)
+    if originalParents[obj] then
+        obj.Parent = originalParents[obj]
+    end
+    if obj:IsA("Model") then
+        for _, part in ipairs(obj:GetDescendants()) do
+            if part:IsA("BasePart") and originalProperties[part] then
+                local props = originalProperties[part]
+                part.Transparency = props.Transparency
+                part.CanCollide = props.CanCollide
+                part.Anchored = props.Anchored
+            end
+        end
+    elseif obj:IsA("BasePart") and originalProperties[obj] then
+        local props = originalProperties[obj]
+        obj.Transparency = props.Transparency
+        obj.CanCollide = props.CanCollide
+        obj.Anchored = props.Anchored
+    end
+end
+
+-- Обновить список объектов по поиску
+function updateObjectList(query)
+    for _, child in pairs(objectListFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    local objects = {}
+    for _, source in ipairs(sources) do
+        for _, obj in ipairs(source:GetDescendants()) do
+            if (obj:IsA("Model") or obj:IsA("BasePart") or obj:IsA("Folder")) and
+                (query == "" or obj.Name:lower():find(query:lower())) then
+                table.insert(objects, obj)
+            end
+        end
+    end
+
+    table.sort(objects, function(a,b) return a.Name < b.Name end)
+
+    for _, obj in ipairs(objects) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 30)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.SourceSans
+        btn.TextSize = 18
+        btn.Text = "["..obj.ClassName.."] "..obj:GetFullName()
+        btn.Parent = objectListFrame
+
+        local isShown = false -- состояние объекта (показан или нет)
+
+        btn.MouseButton1Click:Connect(function()
+            if not isShown then
+                showObject(obj)
+                btn.Text = "[Скрыть] " .. obj:GetFullName()
+                isShown = true
+                print("👁 Показан объект: " .. obj:GetFullName())
+            else
+                hideObject(obj)
+                btn.Text = "["..obj.ClassName.."] " .. obj:GetFullName()
+                isShown = false
+                print("🙈 Скрыт объект: " .. obj:GetFullName())
+            end
+
+            showDetails(obj)
+        end)
+    end
+
+    objectListFrame.CanvasSize = UDim2.new(0, 0, 0, objectListLayout.AbsoluteContentSize.Y)
+end
+
+-- Показать детали объекта (все дочерние объекты с отступами)
+function showDetails(obj)
+    clearDetails()
+    local function recurse(o, indent)
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 0, 20)
+        label.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.Font = Enum.Font.SourceSans
+        label.TextSize = 16
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Text = string.rep("  ", indent) .. o.Name .. " [" .. o.ClassName .. "]"
+        label.Parent = detailsFrame
+
+        for _, child in pairs(o:GetChildren()) do
+            recurse(child, indent + 1)
+        end
+    end
+
+    recurse(obj, 0)
+    detailsFrame.CanvasSize = UDim2.new(0, 0, 0, detailsLayout.AbsoluteContentSize.Y)
+end
+
+-- Обновление списка при вводе в поиск
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    updateObjectList(searchBox.Text)
+end)
+
+-- Стартуем с пустым поиском
+updateObjectList("")

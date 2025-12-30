@@ -1,0 +1,439 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+-- === Ввод кода доступа ===
+local codeGui = Instance.new("ScreenGui")
+codeGui.Name = "CodeInputGui"
+codeGui.ResetOnSpawn = false
+codeGui.Parent = player:WaitForChild("PlayerGui")
+
+local codeFrame = Instance.new("Frame")
+codeFrame.Size = UDim2.new(0, 300, 0, 160)
+codeFrame.Position = UDim2.new(0.5, -150, 0.5, -80)
+codeFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+codeFrame.BorderSizePixel = 0
+codeFrame.Parent = codeGui
+
+local codeLabel = Instance.new("TextLabel")
+codeLabel.Text = "Введите код доступа:"
+codeLabel.Size = UDim2.new(1, 0, 0, 40)
+codeLabel.TextColor3 = Color3.new(1,1,1)
+codeLabel.Font = Enum.Font.GothamBold
+codeLabel.TextSize = 20
+codeLabel.BackgroundTransparency = 1
+codeLabel.Parent = codeFrame
+
+local codeInput = Instance.new("TextBox")
+codeInput.PlaceholderText = "Код..."
+codeInput.Size = UDim2.new(1, -40, 0, 35)
+codeInput.Position = UDim2.new(0, 20, 0, 50)
+codeInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+codeInput.TextColor3 = Color3.new(1,1,1)
+codeInput.Font = Enum.Font.Gotham
+codeInput.TextSize = 18
+codeInput.ClearTextOnFocus = false
+codeInput.Parent = codeFrame
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Text = "Подтвердить"
+submitBtn.Size = UDim2.new(1, -40, 0, 35)
+submitBtn.Position = UDim2.new(0, 20, 0, 100)
+submitBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+submitBtn.TextColor3 = Color3.new(1,1,1)
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.TextSize = 18
+submitBtn.Parent = codeFrame
+
+-- === Главное меню (скрыто изначально) ===
+local gui = Instance.new("ScreenGui")
+gui.Name = "MurderModMenu"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 700)
+frame.Position = UDim2.new(0, 20, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Visible = false -- скроем, пока не введут код
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Text = "🔥 Murder Mystery Mod Menu"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 22
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1,0,0,40)
+title.Parent = frame
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Text = "Menu"
+toggleBtn.Size = UDim2.new(0, 70, 0, 30)
+toggleBtn.Position = UDim2.new(0, 20, 0, 10)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 20)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 18
+toggleBtn.Parent = gui
+
+toggleBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+end)
+
+local buttonsHolder = Instance.new("ScrollingFrame")
+buttonsHolder.Size = UDim2.new(1, -20, 1, -160)
+buttonsHolder.Position = UDim2.new(0, 10, 0, 50)
+buttonsHolder.CanvasSize = UDim2.new(0, 0, 5, 0)
+buttonsHolder.ScrollBarThickness = 8
+buttonsHolder.BackgroundTransparency = 1
+buttonsHolder.Parent = frame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.Parent = buttonsHolder
+
+-- === Вспомогательные функции и переменные ===
+local function getRole(plr)
+    if plr.Character then
+        for _, tool in pairs(plr.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                local nameLower = tool.Name:lower()
+                if nameLower:find("knife") then return "Murderer" end
+                if nameLower:find("gun") then return "Sheriff" end
+            end
+        end
+        local backpack = plr:FindFirstChildOfClass("Backpack")
+        if backpack then
+            for _, tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") then
+                    local nameLower = tool.Name:lower()
+                    if nameLower:find("knife") then return "Murderer" end
+                    if nameLower:find("gun") then return "Sheriff" end
+                end
+            end
+        end
+    end
+    return "Innocent"
+end
+
+-- Бессмертие
+local invincibleConnection = nil
+local invincibleEnabled = false
+
+local function makeInvincible()
+    local char = player.Character
+    if not char then return end
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not humanoid then return end
+
+    if invincibleConnection then
+        invincibleConnection:Disconnect()
+        invincibleConnection = nil
+    end
+
+    invincibleConnection = humanoid.HealthChanged:Connect(function(newHealth)
+        if invincibleEnabled and newHealth < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
+    invincibleEnabled = true
+    print("Бессмертие включено")
+end
+
+local function disableInvincible()
+    if invincibleConnection then
+        invincibleConnection:Disconnect()
+        invincibleConnection = nil
+    end
+    invincibleEnabled = false
+    print("Бессмертие выключено")
+end
+
+local function toggleInvincible()
+    if invincibleEnabled then
+        disableInvincible()
+    else
+        makeInvincible()
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(0.1)
+    if invincibleEnabled then
+        makeInvincible()
+    end
+end)
+
+-- Телепорт к игроку с ролью
+local function teleportToRole(roleName)
+    local function tryTeleport()
+        for _, plr in pairs(Players:GetPlayers()) do
+            if getRole(plr) == roleName and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.CFrame = plr.Character.HumanoidRootPart.CFrame + Vector3.new(2, 0, 0)
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    if not tryTeleport() then
+        print(roleName .. " не найден или ты мертв, пробуем через 2 сек...")
+        task.delay(2, function()
+            if player.Character then
+                tryTeleport()
+            end
+        end)
+    end
+end
+
+local function tpToMurderer()
+    teleportToRole("Murderer")
+end
+
+local function tpToSheriff()
+    teleportToRole("Sheriff")
+end
+
+-- Телепорт к игроку по нику из инпутбокса
+local inputBox = Instance.new("TextBox")
+inputBox.PlaceholderText = "Введите ник игрока"
+inputBox.Size = UDim2.new(1, -20, 0, 30)
+inputBox.Position = UDim2.new(0, 10, 1, -120)
+inputBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+inputBox.TextColor3 = Color3.new(1,1,1)
+inputBox.Font = Enum.Font.Gotham
+inputBox.TextSize = 18
+inputBox.ClearTextOnFocus = false
+inputBox.Parent = frame
+
+local tpByNameBtn = Instance.new("TextButton")
+tpByNameBtn.Text = "Телепорт к игроку по нику"
+tpByNameBtn.Size = UDim2.new(1, -20, 0, 30)
+tpByNameBtn.Position = UDim2.new(0, 10, 1, -85)
+tpByNameBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 20)
+tpByNameBtn.TextColor3 = Color3.new(1,1,1)
+tpByNameBtn.Font = Enum.Font.GothamBold
+tpByNameBtn.TextSize = 18
+tpByNameBtn.Parent = frame
+
+tpByNameBtn.MouseButton1Click:Connect(function()
+    local targetName = inputBox.Text
+    if targetName == "" then
+        print("Введите ник игрока!")
+        return
+    end
+
+    local targetPlayer = Players:FindFirstChild(targetName)
+    if not targetPlayer then
+        print("Игрок с ником '"..targetName.."' не найден")
+        return
+    end
+
+    if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        print("Игрок мёртв или не загрузился")
+        return
+    end
+
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(2,0,0)
+        print("Телепортировался к "..targetName)
+    else
+        print("Твой персонаж не загружен")
+    end
+end)
+
+local function tpToRandomPlayer()
+    local alivePlayers = {}
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
+            table.insert(alivePlayers, plr)
+        end
+    end
+
+    if #alivePlayers == 0 then
+        print("Нет живых игроков для телепорта")
+        return
+    end
+
+    local randomPlayer = alivePlayers[math.random(1, #alivePlayers)]
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp and randomPlayer.Character and randomPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        hrp.CFrame = randomPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(2, 0, 0)
+        print("Телепортировался к случайному игроку: "..randomPlayer.Name)
+    else
+        print("Не удалось телепортироваться")
+    end
+end
+
+-- Кнопка создания
+local function createButton(text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 17
+    btn.Text = text
+    btn.AutoButtonColor = true
+    btn.BorderSizePixel = 0
+    btn.Parent = buttonsHolder
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- Noclip
+local noclipConn
+local noclipEnabled = false
+
+local function startNoclip()
+    if noclipConn then return end
+    noclipConn = RunService.Heartbeat:Connect(function()
+        local character = player.Character
+        if not character then return end
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = false
+            end
+        end
+    end)
+end
+
+local function stopNoclip()
+    if noclipConn then
+        noclipConn:Disconnect()
+        noclipConn = nil
+    end
+    local character = player.Character
+    if character then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+local function toggleNoclip()
+    noclipEnabled = not noclipEnabled
+    if noclipEnabled then
+        startNoclip()
+        print("🚫 Noclip включён")
+    else
+        stopNoclip()
+        print("✅ Noclip выключен")
+    end
+end
+
+-- Infinite jump
+local infiniteJumpEnabled = false
+local jumpConn = nil
+
+local function toggleInfiniteJump()
+    infiniteJumpEnabled = not infiniteJumpEnabled
+    if infiniteJumpEnabled then
+        if not jumpConn then
+            jumpConn = UserInputService.JumpRequest:Connect(function()
+                if infiniteJumpEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+                    player.Character.Humanoid:ChangeState("Jumping")
+                end
+            end)
+        end
+        print("🦘 Бесконечный прыжок включён")
+    else
+        if jumpConn then
+            jumpConn:Disconnect()
+            jumpConn = nil
+        end
+        print("🦘 Бесконечный прыжок выключен")
+    end
+end
+
+-- Speed boost
+local speedEnabled = false
+local normalSpeed = 16
+local boostedSpeed = 32
+
+local function toggleSpeed()
+    speedEnabled = not speedEnabled
+    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = speedEnabled and boostedSpeed or normalSpeed
+        print("🏃 Скорость " .. (speedEnabled and "x2" or "x1"))
+    end
+end
+
+-- Steal gun
+local function stealGun()
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        print("Твой персонаж не загружен")
+        return
+    end
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local backpack = plr:FindFirstChildOfClass("Backpack")
+            if backpack then
+                for _, tool in pairs(backpack:GetChildren()) do
+                    if tool:IsA("Tool") and tool.Name:lower():find("gun") then
+                        local clone = tool:Clone()
+                        clone.Parent = player:WaitForChild("Backpack")
+                        print("🔫 Украл пистолет у "..plr.Name.." из рюкзака!")
+                        return
+                    end
+                end
+            end
+            if plr.Character then
+                for _, tool in pairs(plr.Character:GetChildren()) do
+                    if tool:IsA("Tool") and tool.Name:lower():find("gun") then
+                        local clone = tool:Clone()
+                        clone.Parent = player:WaitForChild("Backpack")
+                        print("🔫 Украл пистолет у "..plr.Name.." с персонажа!")
+                        return
+                    end
+                end
+            end
+        end
+    end
+
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Tool") and obj.Name:lower():find("gun") and obj.Parent == workspace then
+            obj.Handle.CFrame = hrp.CFrame + Vector3.new(2, 0, 0)
+            print("🔫 Пистолет притянут из мира!")
+            return
+        end
+    end
+
+    print("Пистолет не найден")
+end
+
+-- Кнопки
+createButton("Телепорт к убийце", tpToMurderer)
+createButton("Телепорт к шерифу", tpToSheriff)
+createButton("Телепорт к рандомному живому игроку", tpToRandomPlayer)
+createButton("Вкл/Выкл бессмертие", toggleInvincible)
+createButton("🚫 Вкл/Выкл Noclip", toggleNoclip)
+createButton("🦘 Вкл/Выкл бесконечный прыжок", toggleInfiniteJump)
+createButton("🏃 Вкл/Выкл скорость x2", toggleSpeed)
+createButton("🔫 Украсть оружие", stealGun)
+
+-- === Подключаем проверку кода кнопке ===
+submitBtn.MouseButton1Click:Connect(function()
+    if codeInput.Text == "GRUPPAARXETECTOR" then
+        codeGui:Destroy()
+        frame.Visible = true
+        print("✅ Доступ к мод-меню получен!")
+    else
+        codeInput.Text = ""
+        codeInput.PlaceholderText = "Неверный код!"
+        codeInput.PlaceholderColor3 = Color3.fromRGB(255, 0, 0)
+        print("❌ Неверный код!")
+    end
+end)

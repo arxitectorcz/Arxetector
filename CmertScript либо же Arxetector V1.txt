@@ -1,0 +1,292 @@
+local P, U, R = game:GetService("Players"), game:GetService("UserInputService"), game:GetService("RunService")
+local pl, guiParent = P.LocalPlayer, P.LocalPlayer:WaitForChild("PlayerGui")
+ 
+local states = {
+    Speed=false, Jump=false, InfJump=false, Noclip=false, ESP=false, AutoAim=false
+}
+local data = {
+    Speed={"Скорость: ВКЛ", "Скорость: ВЫКЛ"},
+    Jump={"Прыжок x5: ВКЛ", "Прыжок x5: ВЫКЛ"},
+    InfJump={"Беск. прыжки: ВКЛ", "Беск. прыжки: ВЫКЛ"},
+    Noclip={"Noclip: ВКЛ", "Noclip: ВЫКЛ"},
+    ESP={"ESP: ВКЛ", "ESP: ВЫКЛ"},
+    AutoAim={"Авто-Наводка: ВКЛ", "Авто-Наводка: ВЫКЛ"}
+}
+ 
+local walkNormal, walkBoost = 16, 150
+local jumpNormal, jumpBoost = 50, 200
+ 
+U.JumpRequest:Connect(function()
+    if states.InfJump then
+        local character = pl.Character
+        if not character then return end
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        local state = humanoid:GetState()
+        if state ~= Enum.HumanoidStateType.Landed and
+           state ~= Enum.HumanoidStateType.Running and
+           state ~= Enum.HumanoidStateType.RunningNoPhysics and
+           state ~= Enum.HumanoidStateType.Climbing then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+ 
+local Players, Workspace = game:GetService("Players"), game:GetService("Workspace")
+local localPlayer = Players.LocalPlayer
+local AIM_RADIUS, ROTATION_SPEED, RUN_SPEED = 100, 0.5, 24
+local bodyGyro, heartbeatConnection
+ 
+local function getClosestTargetHead()
+    local character = localPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    local closestTargetHead, closestDistance = nil, AIM_RADIUS + 1
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if head and humanoid and humanoid.Health > 0 then
+                local distance = (root.Position - head.Position).Magnitude
+                if distance <= AIM_RADIUS and distance < closestDistance then
+                    closestDistance, closestTargetHead = distance, head
+                end
+            end
+        end
+    end
+    return closestTargetHead
+end
+ 
+local function lerpCFrame(a, b, t)
+    return a:Lerp(b, t)
+end
+ 
+local function startAutoAim()
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local root = character:WaitForChild("HumanoidRootPart")
+    local humanoid = character:WaitForChild("Humanoid")
+    if bodyGyro then bodyGyro:Destroy() end
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bodyGyro.P = 10000
+    bodyGyro.D = 1000
+    bodyGyro.Parent = root
+    heartbeatConnection = R.Heartbeat:Connect(function()
+        if not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+        local rootPos = root.Position
+        local targetHead = getClosestTargetHead()
+        if targetHead then
+            local targetPos = Vector3.new(targetHead.Position.X, rootPos.Y, targetHead.Position.Z)
+            local desiredCFrame = CFrame.new(rootPos, targetPos)
+            bodyGyro.CFrame = lerpCFrame(bodyGyro.CFrame, desiredCFrame, ROTATION_SPEED)
+            if humanoid then
+                humanoid.WalkSpeed = RUN_SPEED
+                local moveDirection = (targetHead.Position - rootPos)
+                moveDirection = Vector3.new(moveDirection.X, 0, moveDirection.Z).Unit
+                humanoid:Move(moveDirection, false)
+            end
+            local camera = Workspace.CurrentCamera
+            if camera.CameraType == Enum.CameraType.Custom or camera.CameraType == Enum.CameraType.Follow then
+                local camCFrame = camera.CFrame
+                local lookAt = CFrame.new(camCFrame.Position, targetHead.Position)
+                camera.CFrame = camCFrame:Lerp(lookAt, ROTATION_SPEED)
+            end
+        else
+            if humanoid then
+                humanoid.WalkSpeed = 16
+                humanoid:Move(Vector3.new(0,0,0), false)
+            end
+            if bodyGyro then bodyGyro.CFrame = root.CFrame end
+        end
+    end)
+end
+ 
+local function stopAutoAim()
+    if heartbeatConnection then heartbeatConnection:Disconnect() heartbeatConnection = nil end
+    if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
+    local character = localPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 16
+            humanoid:Move(Vector3.new(0,0,0), false)
+        end
+    end
+end
+ 
+local gui = Instance.new("ScreenGui", guiParent)
+gui.Name = "ModMenuGui"
+gui.ResetOnSpawn = false
+ 
+local btn = Instance.new("TextButton", gui)
+btn.Size = UDim2.new(0, 70, 0, 70)
+btn.Position = UDim2.new(0.05, 0, 0.1, 0)
+btn.BackgroundTransparency = 1
+btn.Text = "А"
+btn.TextScaled = true
+btn.Font = Enum.Font.GothamBlack
+btn.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 15)
+ 
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 300, 0, 420)
+frame.Position = UDim2.new(0.05, 80, 0.1, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0, 102, 204)
+frame.BorderSizePixel = 0
+frame.Visible = false
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+Instance.new("UIStroke", frame).Color = Color3.fromRGB(255, 185, 0)
+ 
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1, -20, 1, -20)
+scroll.Position = UDim2.new(0, 10, 0, 10)
+scroll.BackgroundTransparency = 1
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.ScrollBarThickness = 6
+local layout = Instance.new("UIListLayout", scroll)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, 10)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ 
+local buttons = {}
+ 
+local function updateCanvas()
+    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+end
+ 
+local function createBtn(name)
+    local b = Instance.new("TextButton", scroll)
+    b.Size = UDim2.new(1, 0, 0, 50)
+    b.BackgroundColor3 = Color3.fromRGB(255, 185, 0)
+    b.AutoButtonColor = false
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamBold
+    b.Text = data[name][2]
+    b.Name = name
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    local s = Instance.new("UIStroke", b)
+    s.Thickness = 2
+    s.Color = Color3.fromRGB(0, 51, 102)
+    s.Transparency = 0.1
+    b.MouseEnter:Connect(function()
+        b.BackgroundColor3 = Color3.fromRGB(255, 205, 60)
+        s.Transparency = 0
+    end)
+    b.MouseLeave:Connect(function()
+        b.BackgroundColor3 = states[name] and Color3.fromRGB(255, 195, 0) or Color3.fromRGB(255, 185, 0)
+        s.Transparency = states[name] and 0 or 0.1
+    end)
+    return b
+end
+ 
+local function updBtn(name)
+    local b = buttons[name]
+    b.Text = states[name] and data[name][1] or data[name][2]
+    b.BackgroundColor3 = states[name] and Color3.fromRGB(255, 195, 0) or Color3.fromRGB(255, 185, 0)
+end
+ 
+local espBoxes = {}
+ 
+local function createESPBox(character)
+    if espBoxes[character] then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local box = Instance.new("BoxHandleAdornment")
+    box.Adornee = root
+    box.AlwaysOnTop = true
+    box.ZIndex = 10
+    box.Size = Vector3.new(4, 6, 1)
+    box.Color3 = Color3.new(1, 1, 1)
+    box.Transparency = 0.5
+    box.Parent = root
+    espBoxes[character] = box
+end
+ 
+local function removeESPBox(character)
+    if espBoxes[character] then
+        espBoxes[character]:Destroy()
+        espBoxes[character] = nil
+    end
+end
+ 
+local function updateESP()
+    for _, plr in pairs(P:GetPlayers()) do
+        if plr ~= pl and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            if states.ESP then
+                createESPBox(plr.Character)
+            else
+                removeESPBox(plr.Character)
+            end
+        end
+    end
+end
+ 
+local noclipConn
+local function startNoclip()
+    if noclipConn then return end
+    noclipConn = R.Heartbeat:Connect(function()
+        local c = pl.Character
+        if not c then return end
+        for _, part in pairs(c:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+end
+ 
+local function stopNoclip()
+    if noclipConn then
+        noclipConn:Disconnect()
+        noclipConn = nil
+    end
+end
+ 
+local function toggle(name)
+    local c = pl.Character or pl.CharacterAdded:Wait()
+    local h = c:FindFirstChildWhichIsA("Humanoid")
+    states[name] = not states[name]
+    updBtn(name)
+    if name == "Speed" and h then
+        h.WalkSpeed = states.Speed and walkBoost or walkNormal
+    elseif name == "Jump" and h then
+        h.JumpPower = states.Jump and jumpBoost or jumpNormal
+    elseif name == "Fly" then
+        if states.Fly then
+            startFly()
+        else
+            stopFly()
+        end
+    elseif name == "Noclip" then
+        if states.Noclip then
+            startNoclip()
+        else
+            stopNoclip()
+        end
+    elseif name == "ESP" then
+        updateESP()
+    elseif name == "AutoAim" then
+        if states.AutoAim then
+            startAutoAim()
+        else
+            stopAutoAim()
+        end
+    end
+end
+ 
+btn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+end)
+ 
+for k,v in pairs(states) do
+    local b = createBtn(k)
+    b.MouseButton1Click:Connect(function()
+        toggle(k)
+    end)
+    buttons[k] = b
+    updBtn(k)
+end
+ 
+updateCanvas()
+scroll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)

@@ -1,0 +1,24 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Ждём появления GUI
+local teleportUI = playerGui:WaitForChild("Teleport_UI", 10)
+
+if teleportUI then
+  -- Включаем сам GUI
+  if teleportUI:IsA("ScreenGui") then
+    teleportUI.Enabled = true
+  end
+
+  -- Обход всех объектов внутри и включение видимости
+  for _, obj in ipairs(teleportUI:GetDescendants()) do
+    if obj:IsA("GuiObject") then
+      obj.Visible = true
+    end
+  end
+  
+  print("Teleport_UI был успешно включён и показан.")
+else
+  warn("Teleport_UI не найден в PlayerGui.")
+end

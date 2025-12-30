@@ -1,0 +1,122 @@
+local playersService = cloneref(game:GetService('Players'))
+local inputService = cloneref(game:GetService('UserInputService'))
+local lplr = playersService.LocalPlayer
+
+entitylib = {}
+Studs = { Value = 16000 }
+
+local Cpart, OldPos, OldY
+local Up = 0
+
+local function getCharacter()
+  local char = lplr.Character or lplr.CharacterAdded:Wait()
+  local hrp = char:WaitForChild("HumanoidRootPart")
+  local head = char:WaitForChild("Head")
+  entitylib.character = {
+    Head = head,
+    RootPart = hrp
+  }
+end
+
+getCharacter()
+lplr.CharacterAdded:Connect(getCharacter)
+
+function _G.invis()
+  getgenv().callback = not getgenv().callback
+  if getgenv().callback then
+    OldY = entitylib.character.Head.Position.Y
+    OldPos = entitylib.character.RootPart.CFrame
+    Cpart = Instance.new("Part", workspace)
+    Cpart.Anchored = true
+    Cpart.CanCollide = false
+    Cpart.Transparency = 0.3
+    Cpart.Size = Vector3.new(1, 1, 1)
+    Cpart.Material = Enum.Material.Neon
+    Cpart.Color = Color3.fromRGB(255, 255, 0) -- Жёлтый
+    workspace.CurrentCamera.CameraSubject = Cpart
+    entitylib.character.RootPart.CFrame = entitylib.character.RootPart.CFrame + Vector3.new(0, OldY + Studs.Value, 0)
+
+    task.spawn(function()
+      while getgenv().callback and Cpart do
+        Cpart.Position = Vector3.new(entitylib.character.RootPart.Position.X, OldY + Up,
+          entitylib.character.RootPart.Position.Z)
+        Cpart.Rotation = entitylib.character.RootPart.Rotation
+        if entitylib.character.RootPart.Position.Y <= (OldY + 4) then
+          entitylib.character.RootPart.CFrame = entitylib.character.RootPart.CFrame +
+          Vector3.new(0, OldY + Studs.Value, 0)
+        end
+        entitylib.character.RootPart.Velocity = Vector3.new(entitylib.character.RootPart.Velocity.X, 0, entitylib.character.RootPart.Velocity.Z)
+        task.wait()
+      end
+    end)
+  else
+    if lplr.Character and OldPos then
+      workspace.CurrentCamera.CameraSubject = lplr.Character
+      entitylib.character.RootPart.CFrame = Cpart.CFrame
+    end
+    if Cpart then
+      Cpart:Destroy()
+      Cpart = nil
+    end
+  end
+end
+
+-- UI Creation
+local player = game:GetService("Players").LocalPlayer
+local starterGui = player:WaitForChild("PlayerGui")
+
+-- Create ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "InvisToggleGui"
+gui.ResetOnSpawn = false
+gui.Parent = starterGui
+
+-- Main Invis Toggle
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 150, 0, 40)
+toggleBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
+toggleBtn.Text = "Invis: OFF"
+toggleBtn.TextScaled = true
+toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Parent = gui
+
+local invisOn = false
+toggleBtn.MouseButton1Click:Connect(function()
+  invisOn = not invisOn
+  toggleBtn.Text = "Invis: " .. (invisOn and "ON" or "OFF")
+  toggleBtn.BackgroundColor3 = invisOn and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(50, 50, 50)
+  _G.invis()
+end)
+
+-- Up Button
+local upBtn = Instance.new("TextButton")
+upBtn.Size = UDim2.new(0, 70, 0, 35)
+upBtn.Position = UDim2.new(0.05, 160, 0.3, 0)
+upBtn.Text = "⬆️ Поднять"
+upBtn.TextScaled = true
+upBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+upBtn.TextColor3 = Color3.new(0, 0, 0)
+upBtn.Parent = gui
+
+upBtn.MouseButton1Click:Connect(function()
+  if getgenv().callback then
+    Up = Up + 2
+  end
+end)
+
+-- Down Button
+local downBtn = Instance.new("TextButton")
+downBtn.Size = UDim2.new(0, 70, 0, 35)
+downBtn.Position = UDim2.new(0.05, 160, 0.3, 45)
+downBtn.Text = "⬇️ Опустить"
+downBtn.TextScaled = true
+downBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+downBtn.TextColor3 = Color3.new(0, 0, 0)
+downBtn.Parent = gui
+
+downBtn.MouseButton1Click:Connect(function()
+  if getgenv().callback then
+    Up = Up - 2
+  end
+end)
