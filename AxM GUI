@@ -1,7 +1,7 @@
 --[[ 
-    [🚀] AxM SUPREME MOBILE FINAL
-    [🛰️] FLY: PHYSICAL VELOCITY (STABLE)
-    [🎮] CONTROLS: JOYSTICK + UP/DOWN BUTTONS
+    [🚀] AxM SUPREME (IY FLY ENGINE)
+    [🛰️] ПЕРЕНЕСЕНО ИЗ IY: СТАБИЛЬНЫЙ ФЛАЙ ДЛЯ ТФ
+    [🎮] УПРАВЛЕНИЕ: ДЖОЙСТИК + КНОПКИ UP/DOWN
 ]]
 
 local Players = game:GetService("Players")
@@ -11,38 +11,40 @@ local lp = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-ScreenGui.Name = "AxM_Mobile_Ultimate"
+ScreenGui.Name = "AxM_IY_Mobile"
 ScreenGui.ResetOnSpawn = false
 
+-- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 local FLYING = false
 local flySpeed = 50
 local noclip = false
+local moveState = {UP = 0, DOWN = 0}
 
--- Состояния управления
-local moveState = {F = 0, B = 0, L = 0, R = 0, UP = 0, DOWN = 0}
-
--- ГЛАВНОЕ ОКНО
+-- ГЛАВНОЕ ОКНО AxM
 local mainFrame = Instance.new("Frame", ScreenGui)
-mainFrame.Size = UDim2.new(0, 200, 0, 300)
-mainFrame.Position = UDim2.new(0.5, -100, 0.4, -150)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+mainFrame.Size = UDim2.new(0, 180, 0, 250)
+mainFrame.Position = UDim2.new(0.5, -90, 0.4, -125)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
 mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
 Instance.new("UICorner", mainFrame)
 
-local function createBtn(text, pos, parent, cb)
-    local b = Instance.new("TextButton", parent)
-    b.Size = UDim2.new(0.9, 0, 0, 35)
-    b.Position = pos
-    b.Text = text
-    b.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-    b.TextColor3 = Color3.new(1,1,1)
-    b.Font = "GothamBold"
-    Instance.new("UICorner", b)
-    b.MouseButton1Click:Connect(cb)
-    return b
+local function addButton(text, pos, callback)
+    local btn = Instance.new("TextButton", mainFrame)
+    btn.Size = UDim2.new(0.9, 0, 0, 40)
+    btn.Position = pos
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+    btn.Text = text
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = "GothamBold"
+    Instance.new("UICorner", btn)
+    btn.MouseButton1Click:Connect(callback)
+    return btn
 end
 
-local flyBtn = createBtn("FLY: OFF", UDim2.new(0.05, 0, 0, 50), mainFrame, function()
+-- КНОПКИ В МЕНЮ
+local flyBtn = addButton("FLY: [OFF]", UDim2.new(0.05, 0, 0, 50), function()
     FLYING = not FLYING
     if not FLYING then
         if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
@@ -54,76 +56,95 @@ local flyBtn = createBtn("FLY: OFF", UDim2.new(0.05, 0, 0, 50), mainFrame, funct
     end
 end)
 
--- КНОПКИ УПРАВЛЕНИЯ ВЫСОТОЙ (ТОЛЬКО ДЛЯ МОБИЛОК)
+addButton("NOCLIP: [OFF]", UDim2.new(0.05, 0, 0, 100), function() 
+    noclip = not noclip 
+end)
+
+-- СОЗДАНИЕ КНОПОК UP/DOWN ДЛЯ ТЕЛЕФОНА
 local controlFrame = Instance.new("Frame", ScreenGui)
-controlFrame.Size = UDim2.new(0, 60, 0, 130)
-controlFrame.Position = UDim2.new(1, -70, 0.5, -65)
+controlFrame.Size = UDim2.new(0, 70, 0, 150)
+controlFrame.Position = UDim2.new(1, -80, 0.5, -75)
 controlFrame.BackgroundTransparency = 1
 
-local upBtn = Instance.new("TextButton", controlFrame)
-upBtn.Size = UDim2.new(1, 0, 0.45, 0)
-upBtn.Text = "UP"
-upBtn.BackgroundColor3 = Color3.new(0, 0.5, 1)
-Instance.new("UICorner", upBtn)
+local function createVerticalBtn(text, pos, color, stateKey)
+    local b = Instance.new("TextButton", controlFrame)
+    b.Size = UDim2.new(1, 0, 0.45, 0)
+    b.Position = pos
+    b.Text = text
+    b.BackgroundColor3 = color
+    b.Font = "GothamBlack"
+    b.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", b)
+    
+    b.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            moveState[stateKey] = 1
+        end
+    end)
+    b.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            moveState[stateKey] = 0
+        end
+    end)
+end
 
-local downBtn = Instance.new("TextButton", controlFrame)
-downBtn.Size = UDim2.new(1, 0, 0.45, 0)
-downBtn.Position = UDim2.new(0, 0, 0.55, 0)
-downBtn.Text = "DOWN"
-downBtn.BackgroundColor3 = Color3.new(1, 0.2, 0.2)
-Instance.new("UICorner", downBtn)
+createVerticalBtn("UP", UDim2.new(0,0,0,0), Color3.fromRGB(0, 150, 255), "UP")
+createVerticalBtn("DOWN", UDim2.new(0,0,0.55,0), Color3.fromRGB(255, 50, 50), "DOWN")
 
-upBtn.InputBegan:Connect(function() moveState.UP = 1 end)
-upBtn.InputEnded:Connect(function() moveState.UP = 0 end)
-downBtn.InputBegan:Connect(function() moveState.DOWN = 1 end)
-downBtn.InputEnded:Connect(function() moveState.DOWN = 0 end)
-
--- ЛОГИКА ПОЛЕТА
+-- ЛОГИКА ПОЛЕТА (IY ENGINE STYLE)
 RunService.RenderStepped:Connect(function()
     if FLYING and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
         local hrp = lp.Character.HumanoidRootPart
         local hum = lp.Character.Humanoid
         
-        flyBtn.Text = "FLY: ON"
+        flyBtn.Text = "FLY: [ON]"
         hum.PlatformStand = true
         
+        -- Стабилизация вращения (BodyGyro)
         local bg = hrp:FindFirstChild("AxM_Gyro") or Instance.new("BodyGyro", hrp)
         bg.Name = "AxM_Gyro"
         bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
         bg.P = 9e4
         bg.CFrame = camera.CFrame
         
+        -- Сила движения (BodyVelocity)
         local bv = hrp:FindFirstChild("AxM_Velocity") or Instance.new("BodyVelocity", hrp)
         bv.Name = "AxM_Velocity"
         bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
         
-        local moveDir = hum.MoveDirection -- Джойстик
-        local vel = Vector3.new(0, 0, 0)
+        local moveDir = hum.MoveDirection -- Направление от джойстика
+        local look = camera.CFrame.LookVector
+        local right = camera.CFrame.RightVector
         
-        if moveDir.Magnitude > 0 then
-            vel = moveDir * flySpeed
+        -- Расчет финальной скорости
+        local verticalMove = (moveState.UP - moveState.DOWN) * flySpeed
+        bv.Velocity = (moveDir * flySpeed) + Vector3.new(0, verticalMove, 0)
+    else
+        flyBtn.Text = "FLY: [OFF]"
+    end
+    
+    -- NOCLIP LOGIC
+    if noclip or FLYING then
+        if lp.Character then
+            for _, v in pairs(lp.Character:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
         end
-        
-        -- Добавляем подъем/спуск
-        local vertical = (moveState.UP - moveState.DOWN) * flySpeed
-        bv.Velocity = vel + Vector3.new(0, vertical, 0)
     end
 end)
 
--- КНОПКА AxM
+-- КНОПКА ОТКРЫТИЯ AxM
 local mainBtn = Instance.new("TextButton", ScreenGui)
-mainBtn.Size = UDim2.new(0, 50, 0, 50)
-mainBtn.Position = UDim2.new(0, 10, 0.5, 0)
+mainBtn.Size = UDim2.new(0, 60, 0, 60)
+mainBtn.Position = UDim2.new(0, 10, 0.5, -30)
 mainBtn.Text = "AxM"
-mainBtn.BackgroundColor3 = Color3.new(1, 0.8, 0)
+mainBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+mainBtn.Font = "GothamBlack"
 Instance.new("UICorner", mainBtn).CornerRadius = UDim.new(1, 0)
 mainBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
 
--- Ноклип (чтобы не застревать)
-RunService.Stepped:Connect(function()
-    if FLYING and lp.Character then
-        for _, v in pairs(lp.Character:GetDescendants()) do
-            if v:IsA("BasePart") then v.CanCollide = false end
-        end
-    end
+-- КОМАНДЫ В ЧАТЕ
+lp.Chatted:Connect(function(msg)
+    if msg:lower() == "fly" then FLYING = true
+    elseif msg:lower() == "unfly" then FLYING = false end
 end)
