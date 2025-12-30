@@ -1,40 +1,49 @@
 --[[ 
-    [🚀] AxM SUPREME (IY FLY ENGINE)
-    [🛰️] ПЕРЕНЕСЕНО ИЗ IY: СТАБИЛЬНЫЙ ФЛАЙ ДЛЯ ТФ
-    [🎮] УПРАВЛЕНИЕ: ДЖОЙСТИК + КНОПКИ UP/DOWN
+    [🚀] AxM SUPREME MOBILE HUB
+    [🛰️] FLY: FULL 3D DIRECTIONAL (PC STYLE)
+    [🛡️] FEATURES: FLY, NOCLIP, SPEED, INF JUMP, BRIGHT, TP
 ]]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
 local lp = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-ScreenGui.Name = "AxM_IY_Mobile"
+ScreenGui.Name = "AxM_Supreme"
 ScreenGui.ResetOnSpawn = false
 
--- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+-- Состояния
 local FLYING = false
-local flySpeed = 50
 local noclip = false
-local moveState = {UP = 0, DOWN = 0}
+local infJump = false
+local flySpeed = 1.8
+local walkSpeedValue = 16
 
--- ГЛАВНОЕ ОКНО AxM
+-- ГЛАВНОЕ ОКНО
 local mainFrame = Instance.new("Frame", ScreenGui)
-mainFrame.Size = UDim2.new(0, 180, 0, 250)
-mainFrame.Position = UDim2.new(0.5, -90, 0.4, -125)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
+mainFrame.Size = UDim2.new(0, 200, 0, 380)
+mainFrame.Position = UDim2.new(0.5, -100, 0.5, -190)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 mainFrame.Visible = false
 mainFrame.Active = true
 mainFrame.Draggable = true
 Instance.new("UICorner", mainFrame)
 
-local function addButton(text, pos, callback)
-    local btn = Instance.new("TextButton", mainFrame)
-    btn.Size = UDim2.new(0.9, 0, 0, 40)
-    btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+local container = Instance.new("ScrollingFrame", mainFrame)
+container.Size = UDim2.new(1, 0, 0.9, 0)
+container.Position = UDim2.new(0, 0, 0.1, 0)
+container.BackgroundTransparency = 1
+container.CanvasSize = UDim2.new(0, 0, 1.5, 0)
+container.ScrollBarThickness = 2
+
+local function addButton(text, callback)
+    local btn = Instance.new("TextButton", container)
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Position = UDim2.new(0.05, 0, 0, #container:GetChildren() * 40)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = "GothamBold"
@@ -43,108 +52,94 @@ local function addButton(text, pos, callback)
     return btn
 end
 
--- КНОПКИ В МЕНЮ
-local flyBtn = addButton("FLY: [OFF]", UDim2.new(0.05, 0, 0, 50), function()
+-- ФУНКЦИИ
+local flyBtn = addButton("FLY: OFF", function()
     FLYING = not FLYING
-    if not FLYING then
-        if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = lp.Character.HumanoidRootPart
-            if hrp:FindFirstChild("AxM_Velocity") then hrp.AxM_Velocity:Destroy() end
-            if hrp:FindFirstChild("AxM_Gyro") then hrp.AxM_Gyro:Destroy() end
-            lp.Character.Humanoid.PlatformStand = false
-        end
-    end
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then hrp.Anchored = FLYING end
 end)
 
-addButton("NOCLIP: [OFF]", UDim2.new(0.05, 0, 0, 100), function() 
+local noclipBtn = addButton("NOCLIP: OFF", function() 
     noclip = not noclip 
+    noclipBtn.Text = "NOCLIP: " .. (noclip and "ON" or "OFF")
 end)
 
--- СОЗДАНИЕ КНОПОК UP/DOWN ДЛЯ ТЕЛЕФОНА
-local controlFrame = Instance.new("Frame", ScreenGui)
-controlFrame.Size = UDim2.new(0, 70, 0, 150)
-controlFrame.Position = UDim2.new(1, -80, 0.5, -75)
-controlFrame.BackgroundTransparency = 1
+local jumpBtn = addButton("INF JUMP: OFF", function()
+    infJump = not infJump
+    jumpBtn.Text = "INF JUMP: " .. (infJump and "ON" or "OFF")
+end)
 
-local function createVerticalBtn(text, pos, color, stateKey)
-    local b = Instance.new("TextButton", controlFrame)
-    b.Size = UDim2.new(1, 0, 0.45, 0)
-    b.Position = pos
-    b.Text = text
-    b.BackgroundColor3 = color
-    b.Font = "GothamBlack"
-    b.TextColor3 = Color3.new(1,1,1)
-    Instance.new("UICorner", b)
-    
-    b.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            moveState[stateKey] = 1
-        end
-    end)
-    b.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            moveState[stateKey] = 0
-        end
-    end)
-end
+addButton("SPEED +10", function()
+    walkSpeedValue = walkSpeedValue + 10
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid.WalkSpeed = walkSpeedValue
+    end
+end)
 
-createVerticalBtn("UP", UDim2.new(0,0,0,0), Color3.fromRGB(0, 150, 255), "UP")
-createVerticalBtn("DOWN", UDim2.new(0,0,0.55,0), Color3.fromRGB(255, 50, 50), "DOWN")
+addButton("FULLBRIGHT", function()
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+end)
 
--- ЛОГИКА ПОЛЕТА (IY ENGINE STYLE)
+addButton("TP TO RANDOM PLAYER", function()
+    local allPlrs = Players:GetPlayers()
+    local randomPlr = allPlrs[math.random(1, #allPlrs)]
+    if randomPlr and randomPlr ~= lp and randomPlr.Character and randomPlr.Character:FindFirstChild("HumanoidRootPart") then
+        lp.Character.HumanoidRootPart.CFrame = randomPlr.Character.HumanoidRootPart.CFrame
+    end
+end)
+
+-- ЛОГИКА 3D ПОЛЕТА И ПРОВЕРОК
 RunService.RenderStepped:Connect(function()
-    if FLYING and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = lp.Character.HumanoidRootPart
-        local hum = lp.Character.Humanoid
+    if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = lp.Character.HumanoidRootPart
+    local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+
+    if FLYING then
+        hrp.Anchored = true
+        flyBtn.Text = "FLY: ON"
         
-        flyBtn.Text = "FLY: [ON]"
-        hum.PlatformStand = true
-        
-        -- Стабилизация вращения (BodyGyro)
-        local bg = hrp:FindFirstChild("AxM_Gyro") or Instance.new("BodyGyro", hrp)
-        bg.Name = "AxM_Gyro"
-        bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-        bg.P = 9e4
-        bg.CFrame = camera.CFrame
-        
-        -- Сила движения (BodyVelocity)
-        local bv = hrp:FindFirstChild("AxM_Velocity") or Instance.new("BodyVelocity", hrp)
-        bv.Name = "AxM_Velocity"
-        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-        
-        local moveDir = hum.MoveDirection -- Направление от джойстика
-        local look = camera.CFrame.LookVector
-        local right = camera.CFrame.RightVector
-        
-        -- Расчет финальной скорости
-        local verticalMove = (moveState.UP - moveState.DOWN) * flySpeed
-        bv.Velocity = (moveDir * flySpeed) + Vector3.new(0, verticalMove, 0)
+        local moveDir = hum.MoveDirection
+        if moveDir.Magnitude > 0 then
+            -- 3D Вектор: учитывает наклон камеры (LookVector)
+            local direction = (camera.CFrame.LookVector * (moveDir.Z * -1)) + (camera.CFrame.RightVector * moveDir.X)
+            hrp.CFrame = hrp.CFrame + (direction * flySpeed)
+        end
     else
-        flyBtn.Text = "FLY: [OFF]"
+        flyBtn.Text = "FLY: OFF"
+        if hrp.Anchored and not noclip then hrp.Anchored = false end
     end
-    
-    -- NOCLIP LOGIC
+
     if noclip or FLYING then
-        if lp.Character then
-            for _, v in pairs(lp.Character:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
-            end
+        for _, v in pairs(lp.Character:GetDescendants()) do
+            if v:IsA("BasePart") then v.CanCollide = false end
         end
     end
 end)
 
--- КНОПКА ОТКРЫТИЯ AxM
-local mainBtn = Instance.new("TextButton", ScreenGui)
-mainBtn.Size = UDim2.new(0, 60, 0, 60)
-mainBtn.Position = UDim2.new(0, 10, 0.5, -30)
-mainBtn.Text = "AxM"
-mainBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-mainBtn.Font = "GothamBlack"
-Instance.new("UICorner", mainBtn).CornerRadius = UDim.new(1, 0)
-mainBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+-- Infinite Jump Logic
+UserInputService.JumpRequest:Connect(function()
+    if infJump and lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
+        lp.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
 
--- КОМАНДЫ В ЧАТЕ
+-- КНОПКА AxM
+local tBtn = Instance.new("TextButton", ScreenGui)
+tBtn.Size = UDim2.new(0, 50, 0, 50)
+tBtn.Position = UDim2.new(0, 10, 0.5, 0)
+tBtn.Text = "AxM"
+tBtn.BackgroundColor3 = Color3.new(1, 0.8, 0)
+Instance.new("UICorner", tBtn).CornerRadius = UDim.new(1, 0)
+tBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+
+-- Команды чата
 lp.Chatted:Connect(function(msg)
-    if msg:lower() == "fly" then FLYING = true
-    elseif msg:lower() == "unfly" then FLYING = false end
+    local args = msg:split(" ")
+    if args[1]:lower() == "speed" and args[2] then
+        walkSpeedValue = tonumber(args[2])
+        lp.Character.Humanoid.WalkSpeed = walkSpeedValue
+    end
 end)
