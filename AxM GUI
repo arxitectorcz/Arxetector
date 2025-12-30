@@ -1,7 +1,7 @@
 --[[ 
-    [🚀] AxM SUPREME MOBILE HUB
-    [🛰️] FLY: FULL 3D DIRECTIONAL (PC STYLE)
-    [🛡️] FEATURES: FLY, NOCLIP, SPEED, INF JUMP, BRIGHT, TP
+    [🚀] AxM SUPREME HUB v2
+    [🛰️] FLY: 3D PC-STYLE
+    [🔍] FEATURES: TARGET TP, FLY, NOCLIP, SPEED, INF JUMP, BRIGHT
 ]]
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local lp = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-ScreenGui.Name = "AxM_Supreme"
+ScreenGui.Name = "AxM_Supreme_V2"
 ScreenGui.ResetOnSpawn = false
 
 -- Состояния
@@ -24,8 +24,8 @@ local walkSpeedValue = 16
 
 -- ГЛАВНОЕ ОКНО
 local mainFrame = Instance.new("Frame", ScreenGui)
-mainFrame.Size = UDim2.new(0, 200, 0, 380)
-mainFrame.Position = UDim2.new(0.5, -100, 0.5, -190)
+mainFrame.Size = UDim2.new(0, 200, 0, 420) -- Немного увеличил высоту
+mainFrame.Position = UDim2.new(0.5, -100, 0.5, -210)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 mainFrame.Visible = false
 mainFrame.Active = true
@@ -36,13 +36,13 @@ local container = Instance.new("ScrollingFrame", mainFrame)
 container.Size = UDim2.new(1, 0, 0.9, 0)
 container.Position = UDim2.new(0, 0, 0.1, 0)
 container.BackgroundTransparency = 1
-container.CanvasSize = UDim2.new(0, 0, 1.5, 0)
+container.CanvasSize = UDim2.new(0, 0, 1.6, 0)
 container.ScrollBarThickness = 2
 
 local function addButton(text, callback)
     local btn = Instance.new("TextButton", container)
     btn.Size = UDim2.new(0.9, 0, 0, 35)
-    btn.Position = UDim2.new(0.05, 0, 0, #container:GetChildren() * 40)
+    btn.Position = UDim2.new(0.05, 0, 0, #container:GetChildren() * 40 + 5)
     btn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
@@ -52,7 +52,33 @@ local function addButton(text, callback)
     return btn
 end
 
--- ФУНКЦИИ
+-- ПОЛЕ ВВОДА ДЛЯ ТЕЛЕПОРТА
+local tpInput = Instance.new("TextBox", container)
+tpInput.Size = UDim2.new(0.9, 0, 0, 35)
+tpInput.Position = UDim2.new(0.05, 0, 0, 5)
+tpInput.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+tpInput.PlaceholderText = "Part of nickname..."
+tpInput.Text = ""
+tpInput.TextColor3 = Color3.new(1, 1, 1)
+tpInput.Font = "GothamBold"
+Instance.new("UICorner", tpInput)
+
+-- КНОПКА ТЕЛЕПОРТА (ПРИВЯЗАНА К ТЕКСТБОКСУ)
+addButton("TP TO PLAYER", function()
+    local targetName = tpInput.Text:lower()
+    if targetName ~= "" then
+        for _, v in pairs(Players:GetPlayers()) do
+            if v ~= lp and (v.Name:lower():find(targetName) or v.DisplayName:lower():find(targetName)) then
+                if v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                    lp.Character.HumanoidRootPart.CFrame = v.Character.HumanoidRootPart.CFrame
+                    break -- Тепает к первому найденному
+                end
+            end
+        end
+    end
+end)
+
+-- ОСТАЛЬНЫЕ ФУНКЦИИ
 local flyBtn = addButton("FLY: OFF", function()
     FLYING = not FLYING
     local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
@@ -83,15 +109,7 @@ addButton("FULLBRIGHT", function()
     Lighting.GlobalShadows = false
 end)
 
-addButton("TP TO RANDOM PLAYER", function()
-    local allPlrs = Players:GetPlayers()
-    local randomPlr = allPlrs[math.random(1, #allPlrs)]
-    if randomPlr and randomPlr ~= lp and randomPlr.Character and randomPlr.Character:FindFirstChild("HumanoidRootPart") then
-        lp.Character.HumanoidRootPart.CFrame = randomPlr.Character.HumanoidRootPart.CFrame
-    end
-end)
-
--- ЛОГИКА 3D ПОЛЕТА И ПРОВЕРОК
+-- ЛОГИКА 3D ПОЛЕТА
 RunService.RenderStepped:Connect(function()
     if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
     local hrp = lp.Character.HumanoidRootPart
@@ -100,10 +118,8 @@ RunService.RenderStepped:Connect(function()
     if FLYING then
         hrp.Anchored = true
         flyBtn.Text = "FLY: ON"
-        
         local moveDir = hum.MoveDirection
         if moveDir.Magnitude > 0 then
-            -- 3D Вектор: учитывает наклон камеры (LookVector)
             local direction = (camera.CFrame.LookVector * (moveDir.Z * -1)) + (camera.CFrame.RightVector * moveDir.X)
             hrp.CFrame = hrp.CFrame + (direction * flySpeed)
         end
@@ -134,12 +150,3 @@ tBtn.Text = "AxM"
 tBtn.BackgroundColor3 = Color3.new(1, 0.8, 0)
 Instance.new("UICorner", tBtn).CornerRadius = UDim.new(1, 0)
 tBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
-
--- Команды чата
-lp.Chatted:Connect(function(msg)
-    local args = msg:split(" ")
-    if args[1]:lower() == "speed" and args[2] then
-        walkSpeedValue = tonumber(args[2])
-        lp.Character.Humanoid.WalkSpeed = walkSpeedValue
-    end
-end)
