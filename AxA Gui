@@ -1,0 +1,107 @@
+--[[ 
+    [🛰️] AxM TRAP SYSTEM v13.0
+    [💀] DOOMSDAY (25 SEC) + KICK BAN 
+    [⚠️] PASS: ADMIN
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local lp = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local PASS = "ADMIN"
+local attempts = 0
+local isActive = false
+
+local ScreenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+ScreenGui.Name = "AxM_Trap_V13"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999999
+
+-- ПУСТОЕ ОКНО ВВОДА
+local mainFrame = Instance.new("Frame", ScreenGui)
+mainFrame.Size = UDim2.new(0, 200, 0, 100)
+mainFrame.Position = UDim2.new(0.5, -100, 0.4, -50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+Instance.new("UICorner", mainFrame)
+Instance.new("UIStroke", mainFrame).Color = Color3.fromRGB(0, 162, 255)
+
+local passBox = Instance.new("TextBox", mainFrame)
+passBox.Size = UDim2.new(0.8, 0, 0, 40)
+passBox.Position = UDim2.new(0.1, 0, 0.3, 0)
+passBox.PlaceholderText = "ENTER KEY"
+passBox.Text = ""
+passBox.BackgroundColor3 = Color3.new(0, 0, 0)
+passBox.TextColor3 = Color3.new(1, 1, 1)
+passBox.Font = Enum.Font.Code
+Instance.new("UICorner", passBox)
+
+-- ТРОЛЛИНГ И КИК
+local function startDoomsday()
+    isActive = true
+    mainFrame.Visible = false
+    
+    -- Громкая сирена
+    local s = Instance.new("Sound", workspace)
+    s.SoundId = "rbxassetid://1567484332"
+    s.Volume = 3
+    s.Looped = true
+    s:Play()
+
+    -- Время хаоса (25 секунд)
+    local endTime = tick() + 25
+    
+    task.spawn(function()
+        while tick() < endTime do
+            -- Тряска и искажение
+            camera.FieldOfView = math.random(30, 120)
+            Lighting.OutdoorAmbient = Color3.new(math.random(), 0, 0)
+            Lighting.Brightness = math.random(1, 10)
+            
+            if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = lp.Character.HumanoidRootPart
+                hrp.Velocity = Vector3.new(0, 800, 0)
+                hrp.CFrame *= CFrame.Angles(0.4, 0.4, 0.4)
+            end
+            task.wait(0.1)
+        end
+        
+        -- ФИНАЛЬНЫЙ КИК С ТЕКСТОМ БАНА
+        lp:Kick("\n\n[Banned for Exploiting]\n\nYour account has been suspended for 365,000 days (999 years).\nReason: Critical Exploit Detection (AxM_V13)\nDate: 2026-01-21\n\nContact support if you think this is a mistake.")
+    end)
+end
+
+passBox.FocusLost:Connect(function(enter)
+    if enter then
+        if passBox.Text == PASS then
+            ScreenGui:Destroy()
+        else
+            attempts = attempts + 1
+            passBox.Text = ""
+            if attempts >= 2 then
+                startDoomsday()
+            end
+        end
+    end
+end)
+
+-- КНОПКА AxM
+local tBtn = Instance.new("TextButton", ScreenGui)
+tBtn.Size = UDim2.new(0, 50, 0, 50)
+tBtn.Position = UDim2.new(0, 10, 0.5, -25)
+tBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+tBtn.Text = "AxM"
+tBtn.TextColor3 = Color3.fromRGB(0, 162, 255)
+tBtn.Font = Enum.Font.GothamBlack
+Instance.new("UICorner", tBtn).CornerRadius = UDim.new(1, 0)
+
+tBtn.MouseButton1Click:Connect(function() 
+    mainFrame.Visible = not mainFrame.Visible 
+end)
+
+warn("AxM v13: READY")
