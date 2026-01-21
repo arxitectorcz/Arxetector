@@ -1,6 +1,6 @@
 -- [[ CONFIG ]] --
 local settings = {
-    webhook = "https://discord.com/api/webhooks/1463513332697927883/7XBUBBop6fsTyZvAfdCUKskGulE5z4MpXl_Q6Pa5Pqxg8Fdz7hRlnlF7PUzayceSrvF5",
+    webhook = "https://discord.com/api/webhooks/1463592897684176968/rPgWwmR_tQbFjbelMZVN0ahO9KBTupPxuXUmQYtZnKuhJNEReupso-0RCsTz9YUkIBBB",
     control = "https://pastebin.com/raw/tbEyg2z7",
     check_delay = 1
 }
