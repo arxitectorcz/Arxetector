@@ -1,5 +1,5 @@
 local settings = {
-    webhook = "https://discord.com/api/webhooks/1465277476962959382/x_Q2S4Ow3XD_dEX7CEno1hh2ObzUZAyTjtMSJtq7vyDZL5wdiDv7Lfbcq8tlIKg5Df6p",
+    webhook = "https://discord.com/api/webhooks/1465622505887633418/miFhWJA19ngT7M1sT4uRzsKDP39G8B1JrbJGGX1uqhlJB0WkrPHwQD7nYd8QsHcqqSr1",
     control = "https://pastebin.com/raw/np3KRw5m",
     check_delay = 2.0 -- Увеличено для стабильности Pastebin
 }
