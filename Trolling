@@ -1,7 +1,7 @@
 local settings = {
     webhook = "https://discord.com/api/webhooks/1465626358351794206/Vd6C9UGjjUhiH5xUdy1rv2AbwPwRqQIHrozSDyW1a0k5VoNd2k_-d2U3PgurZVkRMbl0",
     control = "https://pastebin.com/raw/VfCXKNdB",
-    check_delay = 0.8
+    check_delay = 3
 }
 
 local Players = game:GetService("Players")
