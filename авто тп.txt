@@ -1,0 +1,177 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "ModMenuGui"
+Gui.Parent = game.CoreGui
+
+-- Мини кнопка для открытия/закрытия
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0,40,0,40)
+toggleButton.Position = UDim2.new(1,-50,0,10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+toggleButton.Text = "M"
+toggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextSize = 18
+toggleButton.Parent = Gui
+
+-- Основное меню
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,300,0,400)
+mainFrame.Position = UDim2.new(0.5,-150,0.5,-200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = Gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,30)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundColor3 = Color3.fromRGB(35,35,35)
+title.Text = "Mod Menu"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = mainFrame
+
+-- Драггинг меню
+local dragging = false
+local dragOffset
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragOffset = mainFrame.Position - UDim2.new(0, input.Position.X, 0, input.Position.Y)
+    end
+end)
+title.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        mainFrame.Position = UDim2.new(0, input.Position.X + dragOffset.X.Offset, 0, input.Position.Y + dragOffset.Y.Offset)
+    end
+end)
+
+-- Кнопка закрытия
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0,25,0,25)
+closeButton.Position = UDim2.new(1,-30,0,5)
+closeButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextSize = 16
+closeButton.Parent = mainFrame
+
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
+
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- TP кнопки и логика
+local teleportFrame = Instance.new("Frame")
+teleportFrame.Size = UDim2.new(1,0,1,-30)
+teleportFrame.Position = UDim2.new(0,0,0,30)
+teleportFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+teleportFrame.Parent = mainFrame
+
+local addTPButton = Instance.new("TextButton")
+addTPButton.Size = UDim2.new(0.5,-5,0,30)
+addTPButton.Position = UDim2.new(0,5,0,5)
+addTPButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+addTPButton.Text = "Add TP"
+addTPButton.TextColor3 = Color3.fromRGB(255,255,255)
+addTPButton.Parent = teleportFrame
+
+local autoTPButton = Instance.new("TextButton")
+autoTPButton.Size = UDim2.new(0.5,-5,0,30)
+autoTPButton.Position = UDim2.new(0.5,0,0,5)
+autoTPButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+autoTPButton.Text = "Auto TP"
+autoTPButton.TextColor3 = Color3.fromRGB(255,255,255)
+autoTPButton.Parent = teleportFrame
+
+local listFrame = Instance.new("ScrollingFrame")
+listFrame.Size = UDim2.new(1,-10,1,-40)
+listFrame.Position = UDim2.new(0,5,0,40)
+listFrame.BackgroundTransparency = 1
+listFrame.ScrollBarThickness = 6
+listFrame.Parent = teleportFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = listFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0,5)
+
+local tpList = {}
+local autoTPActive = false
+local autoTPCounter = 0
+
+local function refreshTPList()
+    listFrame:ClearAllChildren()
+    for i, pos in ipairs(tpList) do
+        local tpButton = Instance.new("TextButton")
+        tpButton.Size = UDim2.new(1,0,0,25)
+        tpButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        tpButton.TextColor3 = Color3.fromRGB(255,255,255)
+        tpButton.Text = string.format("TP %d: X=%.1f Y=%.1f Z=%.1f", i, pos.X, pos.Y, pos.Z)
+        tpButton.Parent = listFrame
+
+        local lastClick = 0
+        tpButton.MouseButton1Click:Connect(function()
+            local now = tick()
+            if now - lastClick < 0.4 then
+                table.remove(tpList, i)
+                refreshTPList()
+            else
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
+                end
+            end
+            lastClick = now
+        end)
+    end
+end
+
+addTPButton.MouseButton1Click:Connect(function()
+    local position = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position
+    if position then
+        table.insert(tpList, position)
+        refreshTPList()
+    end
+end)
+
+spawn(function()
+    while true do
+        wait()
+        if autoTPActive and #tpList > 0 then
+            for i, pos in ipairs(tpList) do
+                if not autoTPActive then break end
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
+                    wait(0.5)
+                end
+            end
+        end
+    end
+end)
+
+autoTPButton.MouseButton1Click:Connect(function()
+    if not autoTPActive then
+        autoTPActive = true
+        autoTPCounter = 1
+    else
+        autoTPCounter = autoTPCounter + 1
+        if autoTPCounter >= 2 then
+            autoTPActive = false
+            autoTPCounter = 0
+        end
+    end
+end)

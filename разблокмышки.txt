@@ -1,0 +1,28 @@
+local UserInputService = game:GetService("UserInputService")
+local mouseUnlocked = false
+
+local function toggleMouse()
+    mouseUnlocked = not mouseUnlocked
+    if mouseUnlocked then
+        -- Разблокируем: мышь видна, можно кликать по меню
+        UserInputService.MouseIconEnabled = true
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    else
+        -- Блокируем: мышь в центре (как в обычной игре)
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+    end
+end
+
+-- Переключение на клавишу Z (на клавиатуре)
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Z then
+        toggleMouse()
+    end
+end)
+
+-- Чтобы мышь не блокировалась обратно самой игрой при кликах
+game:GetService("RunService").RenderStepped:Connect(function()
+    if mouseUnlocked then
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    end
+end)
